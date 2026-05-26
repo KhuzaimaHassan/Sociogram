@@ -34,6 +34,6 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        sync: false
+        value: "https://sociogram-rho.vercel.app,http://localhost:5173"
       - key: PORT
         value: "3001"
