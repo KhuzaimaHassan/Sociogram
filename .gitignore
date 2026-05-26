@@ -1,0 +1,52 @@
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Environment & secrets ─────────────────────────────────
+.env
+.env.local
+.env.*.local
+# Keep .env.example and .env.production.example committed
+!.env.example
+!.env.production
+
+# ── Build outputs ─────────────────────────────────────────
+dist/
+build/
+.cache/
+.parcel-cache/
+
+# ── SQLite (dev only — never commit the DB file) ──────────
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ── Uploaded media (local dev only) ───────────────────────
+sociogram-backend/uploads/*
+!sociogram-backend/uploads/.gitkeep
+
+# ── Prisma generated client (re-generated on install) ─────
+sociogram-backend/node_modules/
+
+# ── OS & Editor ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Logs ──────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ── face-api.js models (downloaded separately) ────────────
+public/models/

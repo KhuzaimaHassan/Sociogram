@@ -1,0 +1,33 @@
+{
+  "name": "sociogram-backend",
+  "version": "1.0.0",
+  "description": "Sociogram backend API — Express + Prisma + PostgreSQL",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "build": "npx prisma generate --schema=prisma/schema.prod.prisma && npx prisma db push --schema=prisma/schema.prod.prisma && node prisma/seed-prod.cjs",
+    "postinstall": "npx prisma generate",
+    "db:migrate": "npx prisma migrate dev",
+    "db:seed": "node prisma/seed.cjs",
+    "db:seed:prod": "node prisma/seed-prod.cjs",
+    "db:studio": "npx prisma studio",
+    "db:push": "npx prisma db push"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3"
+  }
+}

@@ -1,0 +1,28 @@
+# Spin up Postgres for local Sociogram development.
+# Run: docker compose up -d
+# Then update sociogram-backend/.env DATABASE_URL accordingly:
+#   postgresql://sociogram:sociogram@localhost:5432/sociogram?schema=public
+
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sociogram-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sociogram
+      POSTGRES_PASSWORD: sociogram
+      POSTGRES_DB: sociogram
+    ports:
+      - "5432:5432"
+    volumes:
+      - sociogram_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sociogram -d sociogram"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sociogram_pgdata:

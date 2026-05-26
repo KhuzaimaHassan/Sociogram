@@ -1,0 +1,110 @@
+// Prisma Schema — PRODUCTION (PostgreSQL)
+// Used by Render.com build via: npx prisma generate --schema=prisma/schema.prod.prisma
+//
+// This is identical to schema.prisma except provider = "postgresql"
+// Do NOT change manually — keep in sync with schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  email        String    @unique
+  password     String
+  displayName  String?
+  bio          String?
+  avatar       String?   @default("😎")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  posts        Post[]
+  comments     Comment[]
+  likes        Like[]
+  reactions    Reaction[]
+  followers    Follow[]  @relation("following") // people who follow this user
+  following    Follow[]  @relation("follower")  // people this user follows
+
+  @@map("users")
+}
+
+model Post {
+  id         String    @id @default(cuid())
+  caption    String?
+  mediaUrl   String?   // local file path or URL
+  mediaType  String    @default("image") // "image" | "video"
+  isReel     Boolean   @default(false)
+  location   String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments   Comment[]
+  likes      Like[]
+  reactions  Reaction[]
+
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("likes")
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String   // e.g. "😍", "😮", "😢"
+  source    String   @default("manual") // "expression" | "manual"
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("reactions")
+}
+
+model Follow {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  followerId  String
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}

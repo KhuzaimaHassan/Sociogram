@@ -1,0 +1,39 @@
+# Render.com Blueprint for the Sociogram backend.
+# https://render.com/docs/blueprint-spec
+#
+# After connecting this repo on Render, this single file provisions:
+#   - a managed Postgres database
+#   - the Express + Prisma backend service
+#
+# Set FRONTEND_URL to your deployed frontend (Vercel) origin.
+
+databases:
+  - name: sociogram-db
+    plan: free
+    databaseName: sociogram
+    user: sociogram
+
+services:
+  - type: web
+    name: sociogram-api
+    runtime: node
+    rootDir: sociogram-backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sociogram-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: PORT
+        value: "3001"
