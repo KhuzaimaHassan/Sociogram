@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -9,6 +10,7 @@ import postRoutes from './routes/postRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { initSocket } from './socket.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -51,9 +53,14 @@ app.use('/api/comments', commentRoutes);
 // ── Error Handler ──────────────────────────────────────
 app.use(errorHandler);
 
+// ── HTTP + Socket.io server ────────────────────────────
+const httpServer = createServer(app);
+initSocket(httpServer, allowedOrigins);
+
 // ── Start ──────────────────────────────────────────────
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`\n  🚀 Sociogram API running at http://localhost:${PORT}`);
   console.log(`  📋 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`  🌐 CORS origin: ${process.env.FRONTEND_URL || 'http://localhost:5173'}\n`);
+  console.log(`  ⚡ Socket.io enabled`);
+  console.log(`  🌐 CORS origins: ${allowedOrigins.join(', ')}\n`);
 });

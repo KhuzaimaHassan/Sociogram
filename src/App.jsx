@@ -2,6 +2,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { ExpressionProvider } from './context/ExpressionContext';
+import { SocketProvider } from './context/SocketContext';
 import AuthGuard from './components/auth/AuthGuard';
 import TopNav from './components/layout/TopNav';
 import BottomNav from './components/layout/BottomNav';
@@ -23,17 +24,19 @@ function ProtectedShell({ children }) {
 
   return (
     <AppProvider>
-      <ExpressionProvider>
-        <div className="min-h-screen bg-dark-bg">
-          {!isReels && !isCreate && <TopNav />}
-          {!isReels && !isCreate && <PrivacyBadge />}
-          <main className={isReels || isCreate ? '' : 'pt-14 pb-16'}>
-            {children}
-          </main>
-          {!isReels && !isCreate && <BottomNav />}
-          <Toast />
-        </div>
-      </ExpressionProvider>
+      <SocketProvider>
+        <ExpressionProvider>
+          <div className="min-h-screen bg-dark-bg">
+            {!isReels && !isCreate && <TopNav />}
+            {!isReels && !isCreate && <PrivacyBadge />}
+            <main className={isReels || isCreate ? '' : 'pt-14 pb-16'}>
+              {children}
+            </main>
+            {!isReels && !isCreate && <BottomNav />}
+            <Toast />
+          </div>
+        </ExpressionProvider>
+      </SocketProvider>
     </AppProvider>
   );
 }

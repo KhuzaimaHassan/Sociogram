@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { notifyUser, broadcastToPost } from '../socket.js';
 
 // POST /api/posts
 export async function createPost(req, res, next) {
@@ -179,10 +180,39 @@ export async function deletePost(req, res, next) {
 // POST /api/posts/:id/like
 export async function likePost(req, res, next) {
   try {
-    await prisma.like.create({
-      data: { userId: req.user.id, postId: req.params.id },
+    const postId = req.params.id;
+
+    // Get post to find the author
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { userId: true },
     });
-    const count = await prisma.like.count({ where: { postId: req.params.id } });
+
+    await prisma.like.create({
+      data: { userId: req.user.id, postId },
+    });
+
+    const count = await prisma.like.count({ where: { postId } });
+
+    // 🔔 Notify post author (not yourself)
+    if (post && post.userId !== req.user.id) {
+      notifyUser(post.userId, 'notification', {
+        id: `like-${postId}-${req.user.id}-${Date.now()}`,
+        type: 'like',
+        from: {
+          id: req.user.id,
+          username: req.user.username,
+          avatar: req.user.avatar,
+        },
+        postId,
+        message: `${req.user.username} liked your post`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 📡 Broadcast live like count to everyone watching this post
+    broadcastToPost(postId, 'post:like_update', { postId, likes: count });
+
     res.json({ liked: true, likes: count });
   } catch (err) {
     if (err.code === 'P2002') {
@@ -195,10 +225,17 @@ export async function likePost(req, res, next) {
 // DELETE /api/posts/:id/like
 export async function unlikePost(req, res, next) {
   try {
+    const postId = req.params.id;
+
     await prisma.like.deleteMany({
-      where: { userId: req.user.id, postId: req.params.id },
+      where: { userId: req.user.id, postId },
     });
-    const count = await prisma.like.count({ where: { postId: req.params.id } });
+
+    const count = await prisma.like.count({ where: { postId } });
+
+    // 📡 Broadcast updated count
+    broadcastToPost(postId, 'post:like_update', { postId, likes: count });
+
     res.json({ liked: false, likes: count });
   } catch (err) {
     next(err);

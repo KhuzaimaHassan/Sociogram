@@ -1,4 +1,5 @@
 import prisma from '../utils/prisma.js';
+import { notifyUser } from '../socket.js';
 
 // GET /api/users/:username
 export async function getProfile(req, res, next) {
@@ -78,6 +79,19 @@ export async function followUser(req, res, next) {
         followerId: req.user.id,
         followingId: req.params.id,
       },
+    });
+
+    // 🔔 Notify the followed user
+    notifyUser(req.params.id, 'notification', {
+      id: `follow-${req.user.id}-${Date.now()}`,
+      type: 'follow',
+      from: {
+        id: req.user.id,
+        username: req.user.username,
+        avatar: req.user.avatar,
+      },
+      message: `${req.user.username} started following you`,
+      timestamp: new Date().toISOString(),
     });
 
     res.json({ following: true });
