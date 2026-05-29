@@ -3,14 +3,14 @@ import { createPost, getFeed, getExplore, getPost, deletePost, likePost, unlikeP
 import { addReaction, removeReaction } from '../controllers/reactionController.js';
 import { addComment, getComments } from '../controllers/commentController.js';
 import { authenticate } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { uploadMedia } from '../middleware/upload.js';
 
 const router = Router();
 
 // All post routes require auth
 router.use(authenticate);
 
-router.post('/', upload.single('media'), createPost);
+router.post('/', uploadMedia, createPost);
 router.get('/feed', getFeed);
 router.get('/explore', getExplore);
 router.get('/:id', getPost);

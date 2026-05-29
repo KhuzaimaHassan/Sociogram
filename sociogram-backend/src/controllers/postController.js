@@ -9,8 +9,15 @@ export async function createPost(req, res, next) {
     let mediaType = 'image';
 
     if (req.file) {
-      mediaUrl = `/uploads/${req.file.filename}`;
-      mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+      mediaType = req.file.mimetype?.startsWith('video/') ? 'video' : 'image';
+
+      if (req.file.path && req.file.path.startsWith('http')) {
+        // Cloudinary upload — multer-storage-cloudinary sets req.file.path to the CDN URL
+        mediaUrl = req.file.path;
+      } else {
+        // Local disk upload
+        mediaUrl = `/uploads/${req.file.filename}`;
+      }
     }
 
     const post = await prisma.post.create({
