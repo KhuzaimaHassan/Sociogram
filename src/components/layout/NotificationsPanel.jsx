@@ -14,6 +14,7 @@ const TYPE_CONFIG = {
   comment:  { icon: '💬',  color: 'text-blue-400',   label: 'commented' },
   reaction: { icon: '😍',  color: 'text-amber-400',  label: 'reacted' },
   follow:   { icon: '👥',  color: 'text-brand-400',  label: 'followed you' },
+  message:  { icon: '✉️',  color: 'text-sky-400',    label: 'sent you a message' },
 };
 
 function timeAgo(ts) {

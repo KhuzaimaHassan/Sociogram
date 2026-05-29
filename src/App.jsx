@@ -16,23 +16,26 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CreatePost from './pages/CreatePost';
+import Messages from './pages/Messages';
+import Chat from './pages/Chat';
 
 function ProtectedShell({ children }) {
   const location = useLocation();
   const isReels = location.pathname === '/reels';
   const isCreate = location.pathname === '/create';
+  const isChat = location.pathname.startsWith('/messages/');
 
   return (
     <AppProvider>
       <SocketProvider>
         <ExpressionProvider>
           <div className="min-h-screen bg-dark-bg">
-            {!isReels && !isCreate && <TopNav />}
-            {!isReels && !isCreate && <PrivacyBadge />}
-            <main className={isReels || isCreate ? '' : 'pt-14 pb-16'}>
+            {!isReels && !isCreate && !isChat && <TopNav />}
+            {!isReels && !isCreate && !isChat && <PrivacyBadge />}
+            <main className={isReels || isCreate || isChat ? '' : 'pt-14 pb-16'}>
               {children}
             </main>
-            {!isReels && !isCreate && <BottomNav />}
+            {!isReels && !isCreate && !isChat && <BottomNav />}
             <Toast />
           </div>
         </ExpressionProvider>
@@ -76,6 +79,8 @@ export default function App() {
                   <Route path="/explore" element={<Explore />} />
                   <Route path="/reels" element={<Reels />} />
                   <Route path="/create" element={<CreatePost />} />
+                  <Route path="/messages" element={<Messages />} />
+                  <Route path="/messages/:convId" element={<Chat />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/profile/:username" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />

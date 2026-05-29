@@ -51,6 +51,24 @@ export function initSocket(httpServer, allowedOrigins) {
       if (postId) socket.leave(`post:${postId}`);
     });
 
+    // ── DM conversation rooms ────────────────────────────
+    socket.on('join:conv', (convId) => {
+      if (convId) socket.join(`conv:${convId}`);
+    });
+
+    socket.on('leave:conv', (convId) => {
+      if (convId) socket.leave(`conv:${convId}`);
+    });
+
+    // Typing indicators — client emits, server relays to other participant
+    socket.on('typing:start', ({ convId, userId, username }) => {
+      if (convId) socket.to(`conv:${convId}`).emit('typing:start', { userId, username });
+    });
+
+    socket.on('typing:stop', ({ convId, userId }) => {
+      if (convId) socket.to(`conv:${convId}`).emit('typing:stop', { userId });
+    });
+
     socket.on('disconnect', () => {
       // rooms are automatically cleaned up by socket.io
     });

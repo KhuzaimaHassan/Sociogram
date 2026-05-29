@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes.js';
 import postRoutes from './routes/postRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
+import dmRoutes from './routes/dmRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initSocket } from './socket.js';
 
@@ -49,6 +50,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/conversations', dmRoutes);
 
 // ── Error Handler ──────────────────────────────────────
 app.use(errorHandler);

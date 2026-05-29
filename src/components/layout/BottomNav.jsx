@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useSocket } from '../../context/SocketContext';
 
 const navItems = [
   {
@@ -16,8 +17,7 @@ const navItems = [
     label: 'Explore',
     icon: (active) => (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? '2.2' : '1.8'} strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" />
-        <path d="M21 21l-4.35-4.35" />
+        <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
       </svg>
     ),
   },
@@ -27,28 +27,17 @@ const navItems = [
     isPrimary: true,
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
+        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
       </svg>
     ),
   },
   {
-    to: '/reels',
-    label: 'Reels',
+    to: '/messages',
+    label: 'Messages',
+    isMessages: true,
     icon: (active) => (
       <svg width="24" height="24" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={active ? '0' : '1.8'} strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-        {!active && (
-          <>
-            <line x1="7" y1="2" x2="7" y2="22" />
-            <line x1="17" y1="2" x2="17" y2="22" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <line x1="2" y1="7" x2="7" y2="7" />
-            <line x1="2" y1="17" x2="7" y2="17" />
-            <line x1="17" y1="7" x2="22" y2="7" />
-            <line x1="17" y1="17" x2="22" y2="17" />
-          </>
-        )}
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
   },
@@ -66,13 +55,20 @@ const navItems = [
 
 export default function BottomNav() {
   const location = useLocation();
+  const { notifications } = useSocket();
+
+  // Count unread DM notifications
+  const dmUnread = notifications.filter((n) => n.type === 'message').length;
+
   if (location.pathname === '/reels' || location.pathname === '/create') return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 glass-elevated border-t border-dark-border/30">
       <div className="max-w-lg mx-auto flex items-center justify-around h-16">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.to;
+          const isActive = item.to === '/messages'
+            ? location.pathname.startsWith('/messages')
+            : location.pathname === item.to;
 
           if (item.isPrimary) {
             return (
@@ -97,6 +93,14 @@ export default function BottomNav() {
               id={`nav-${item.label.toLowerCase()}`}
             >
               {item.icon(isActive)}
+
+              {/* DM unread badge */}
+              {item.isMessages && dmUnread > 0 && (
+                <span className="absolute -top-1 right-1 min-w-[16px] h-4 px-1 bg-brand-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white leading-none">
+                  {dmUnread > 9 ? '9+' : dmUnread}
+                </span>
+              )}
+
               <span className="text-[10px] font-medium">{item.label}</span>
               {isActive && (
                 <span className="absolute -bottom-0 w-6 h-0.5 bg-brand-500 rounded-full" />

@@ -1,8 +1,6 @@
 // Prisma Schema — PRODUCTION (PostgreSQL)
-// Used by Render.com build via: npx prisma generate --schema=prisma/schema.prod.prisma
-//
-// This is identical to schema.prisma except provider = "postgresql"
-// Do NOT change manually — keep in sync with schema.prisma
+// Identical to schema.prisma but with provider = "postgresql"
+// Used by Render.com: npx prisma generate --schema=prisma/schema.prod.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -24,13 +22,15 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  // Relations
-  posts        Post[]
-  comments     Comment[]
-  likes        Like[]
-  reactions    Reaction[]
-  followers    Follow[]  @relation("following") // people who follow this user
-  following    Follow[]  @relation("follower")  // people this user follows
+  posts              Post[]
+  comments           Comment[]
+  likes              Like[]
+  reactions          Reaction[]
+  followers          Follow[]         @relation("following")
+  following          Follow[]         @relation("follower")
+  conversationsAsA   Conversation[]   @relation("participantA")
+  conversationsAsB   Conversation[]   @relation("participantB")
+  sentMessages       Message[]
 
   @@map("users")
 }
@@ -38,14 +38,13 @@ model User {
 model Post {
   id         String    @id @default(cuid())
   caption    String?
-  mediaUrl   String?   // local file path or URL
-  mediaType  String    @default("image") // "image" | "video"
+  mediaUrl   String?
+  mediaType  String    @default("image")
   isReel     Boolean   @default(false)
   location   String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  // Relations
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   comments   Comment[]
@@ -83,8 +82,8 @@ model Like {
 
 model Reaction {
   id        String   @id @default(cuid())
-  emoji     String   // e.g. "😍", "😮", "😢"
-  source    String   @default("manual") // "expression" | "manual"
+  emoji     String
+  source    String   @default("manual")
   createdAt DateTime @default(now())
 
   userId    String
@@ -107,4 +106,34 @@ model Follow {
 
   @@unique([followerId, followingId])
   @@map("follows")
+}
+
+model Conversation {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  participantAId String
+  participantA   User      @relation("participantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantBId String
+  participantB   User      @relation("participantB", fields: [participantBId], references: [id], onDelete: Cascade)
+
+  messages       Message[]
+
+  @@unique([participantAId, participantBId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  text           String
+  createdAt      DateTime     @default(now())
+  readAt         DateTime?
+
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }

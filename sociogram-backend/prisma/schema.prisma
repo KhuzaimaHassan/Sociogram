@@ -1,8 +1,7 @@
 // Prisma Schema for Sociogram
 //
 // LOCAL DEV:  provider = "sqlite"  (this file)
-// PRODUCTION: provider = "postgresql"  (render uses prisma/schema.prod.prisma via
-//             PRISMA_SCHEMA_PATH env var, or we override the provider at build time)
+// PRODUCTION: provider = "postgresql"  (render uses prisma/schema.prod.prisma)
 //
 // To generate after changes: npx prisma generate && npx prisma db push
 generator client {
@@ -26,12 +25,15 @@ model User {
   updatedAt    DateTime  @updatedAt
 
   // Relations
-  posts        Post[]
-  comments     Comment[]
-  likes        Like[]
-  reactions    Reaction[]
-  followers    Follow[]  @relation("following") // people who follow this user
-  following    Follow[]  @relation("follower")  // people this user follows
+  posts              Post[]
+  comments           Comment[]
+  likes              Like[]
+  reactions          Reaction[]
+  followers          Follow[]         @relation("following")
+  following          Follow[]         @relation("follower")
+  conversationsAsA   Conversation[]   @relation("participantA")
+  conversationsAsB   Conversation[]   @relation("participantB")
+  sentMessages       Message[]
 
   @@map("users")
 }
@@ -39,14 +41,13 @@ model User {
 model Post {
   id         String    @id @default(cuid())
   caption    String?
-  mediaUrl   String?   // local file path or URL
-  mediaType  String    @default("image") // "image" | "video"
+  mediaUrl   String?
+  mediaType  String    @default("image")
   isReel     Boolean   @default(false)
   location   String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  // Relations
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   comments   Comment[]
@@ -84,8 +85,8 @@ model Like {
 
 model Reaction {
   id        String   @id @default(cuid())
-  emoji     String   // e.g. "😍", "😮", "😢"
-  source    String   @default("manual") // "expression" | "manual"
+  emoji     String
+  source    String   @default("manual")
   createdAt DateTime @default(now())
 
   userId    String
@@ -108,4 +109,38 @@ model Follow {
 
   @@unique([followerId, followingId])
   @@map("follows")
+}
+
+// ── Direct Messages ────────────────────────────────────
+// One conversation between exactly two users (DMs only, no group chat yet).
+// participantA is always the user with the smaller id (sorted) for dedup.
+model Conversation {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  participantAId String
+  participantA   User      @relation("participantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantBId String
+  participantB   User      @relation("participantB", fields: [participantBId], references: [id], onDelete: Cascade)
+
+  messages       Message[]
+
+  // Ensure only one conversation per pair
+  @@unique([participantAId, participantBId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  text           String
+  createdAt      DateTime     @default(now())
+  readAt         DateTime?    // null = unread
+
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }
