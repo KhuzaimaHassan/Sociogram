@@ -34,6 +34,8 @@ model User {
   conversationsAsA   Conversation[]   @relation("participantA")
   conversationsAsB   Conversation[]   @relation("participantB")
   sentMessages       Message[]
+  stories            Story[]
+  storyViews         StoryView[]
 
   @@map("users")
 }
@@ -143,4 +145,36 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+// ── Stories ───────────────────────────────────────────
+// Each story lasts 24 hours (expiresAt). Supports image or video.
+model Story {
+  id        String   @id @default(cuid())
+  mediaUrl  String
+  mediaType String   @default("image") // "image" | "video"
+  caption   String?
+  duration  Int      @default(5)       // seconds to display (for images)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views     StoryView[]
+
+  @@map("stories")
+}
+
+// Who has seen which story (for unread ring indicator)
+model StoryView {
+  id        String   @id @default(cuid())
+  viewedAt  DateTime @default(now())
+
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewerId  String
+  viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@map("story_views")
 }

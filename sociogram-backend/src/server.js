@@ -10,6 +10,7 @@ import postRoutes from './routes/postRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import dmRoutes from './routes/dmRoutes.js';
+import storyRoutes from './routes/storyRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initSocket } from './socket.js';
 
@@ -51,6 +52,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/conversations', dmRoutes);
+app.use('/api/stories', storyRoutes);
 
 // ── Error Handler ──────────────────────────────────────
 app.use(errorHandler);

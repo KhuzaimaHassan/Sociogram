@@ -1,100 +1,171 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import Avatar from '../shared/Avatar';
-import * as userApi from '../../services/userService';
+/**
+ * StoriesBar.jsx — Real stories from the API.
+ *
+ * Features:
+ * - Loads grouped stories from /api/stories
+ * - Gradient ring = has unread stories; grey ring = all seen
+ * - "Your Story" opens StoryCreator; others open StoryViewer
+ * - Supports navigating between user groups in the viewer
+ * - Refreshes after creating a new story
+ */
 
-// Fallback users shown if API is unavailable
-const FALLBACK_USERS = [
-  { id: 'f1', username: 'alex.wanderer', displayName: 'Alex', avatar: '🧗' },
-  { id: 'f2', username: 'chef.maya', displayName: 'Maya', avatar: '👩‍🍳' },
-  { id: 'f3', username: 'pixel.artist', displayName: 'Pixel', avatar: '🎨' },
-  { id: 'f4', username: 'ocean.diver', displayName: 'Diver', avatar: '🤿' },
-  { id: 'f5', username: 'astro.nerd', displayName: 'Astro', avatar: '🔭' },
-];
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { getStories } from '../../services/storyService';
+import StoryViewer from './StoryViewer';
+import StoryCreator from './StoryCreator';
 
 export default function StoriesBar() {
   const { user: me } = useAuth();
-  const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewingIndex, setViewingIndex] = useState(null); // index into groups[]
+  const [showCreator, setShowCreator] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadUsers() {
-      try {
-        // Search with common letters to get a broad result set
-        const results = await userApi.searchUsers('a');
-        if (!cancelled) {
-          // Filter out current user
-          const others = (results || []).filter((u) => u.id !== me?.id).slice(0, 10);
-          setUsers(others.length > 0 ? others : FALLBACK_USERS);
-        }
-      } catch {
-        if (!cancelled) setUsers(FALLBACK_USERS);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const load = useCallback(async () => {
+    try {
+      const data = await getStories();
+      setGroups(data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-    loadUsers();
-    return () => { cancelled = true; };
-  }, [me?.id]);
+  }, []);
 
-  const displayUsers = loading ? [] : users;
+  useEffect(() => { load(); }, [load]);
+
+  function openGroup(idx) { setViewingIndex(idx); }
+  function closeViewer() { setViewingIndex(null); load(); } // refresh seen state
+
+  function handleCreated() { load(); }
+
+  // Find my own group to show "active story" indicator on my bubble
+  const myGroup = groups.find((g) => g.user.id === me?.id);
+  const hasMyStory = myGroup && myGroup.stories.length > 0;
+
+  const displayGroups = groups.filter((g) => g.user.id !== me?.id);
 
   return (
-    <div className="glass-elevated border-b border-dark-border/30 py-3">
-      <div className="flex gap-3 overflow-x-auto no-scrollbar px-4">
-        {/* Own avatar / Add Story */}
-        <button
-          onClick={() => navigate('/profile')}
-          className="flex flex-col items-center gap-1 min-w-[68px] group"
-          id="stories-own"
-        >
-          <div className="relative">
-            <Avatar
-              emoji={me?.avatar || '😎'}
-              size="lg"
-              hasStory={false}
-            />
-            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center border-2 border-dark-bg group-hover:bg-brand-400 transition-colors">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </div>
-          </div>
-          <span className="text-[11px] text-white/60 truncate w-16 text-center">Your Story</span>
-        </button>
+    <>
+      <div className="glass-elevated border-b border-dark-border/30 py-3" id="stories-bar">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar px-4">
 
-        {/* Loading skeletons */}
-        {loading && Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center gap-1 min-w-[68px]">
-            <div className="w-14 h-14 rounded-full bg-dark-elevated/60 animate-pulse" />
-            <div className="w-10 h-2 rounded bg-dark-elevated/60 animate-pulse" />
-          </div>
-        ))}
-
-        {/* Real users */}
-        {displayUsers.map((u) => (
+          {/* ── Your Story bubble ── */}
           <button
-            key={u.id}
-            onClick={() => navigate(`/profile/${u.username}`)}
-            className="flex flex-col items-center gap-1 min-w-[68px] group"
+            onClick={() => hasMyStory ? openGroup(groups.findIndex(g => g.user.id === me?.id)) : setShowCreator(true)}
+            className="flex flex-col items-center gap-1.5 min-w-[64px] group"
+            id="stories-own"
           >
             <div className="relative">
-              {/* Gradient ring — indicates "active" */}
-              <div className="story-ring p-[2.5px] rounded-full">
-                <div className="bg-dark-bg rounded-full p-0.5">
-                  <Avatar emoji={u.avatar || '😎'} size="lg" hasStory={false} />
+              {/* Ring: gradient if you have a story, plain border if not */}
+              {hasMyStory ? (
+                <div className="story-ring p-[2.5px] rounded-full">
+                  <div className="bg-dark-bg rounded-full p-0.5">
+                    <div className="w-14 h-14 rounded-full bg-dark-elevated flex items-center justify-center text-2xl">
+                      {me?.avatar || '😎'}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="w-14 h-14 rounded-full bg-dark-elevated border-2 border-dark-border/50 flex items-center justify-center text-2xl">
+                  {me?.avatar || '😎'}
+                </div>
+              )}
+              {/* + badge */}
+              {!hasMyStory && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center border-2 border-dark-bg group-hover:bg-brand-400 transition-colors">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </div>
+              )}
             </div>
-            <span className="text-[11px] text-white/60 truncate w-16 text-center group-hover:text-white/90 transition-colors">
-              {u.username.split('.')[0]}
+            <span className="text-[11px] text-white/60 truncate w-16 text-center leading-tight">
+              {hasMyStory ? 'Your Story' : 'Add Story'}
             </span>
           </button>
-        ))}
+
+          {/* ── Loading skeletons ── */}
+          {loading && Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5 min-w-[64px]">
+              <div className="w-14 h-14 rounded-full bg-dark-elevated/60 animate-pulse" />
+              <div className="w-10 h-2 rounded bg-dark-elevated/60 animate-pulse" />
+            </div>
+          ))}
+
+          {/* ── Friend story bubbles ── */}
+          {!loading && displayGroups.map((group, rawIdx) => {
+            // index in the full groups array
+            const fullIdx = groups.indexOf(group);
+            const hasUnread = group.hasUnread;
+
+            return (
+              <button
+                key={group.user.id}
+                onClick={() => openGroup(fullIdx)}
+                className="flex flex-col items-center gap-1.5 min-w-[64px] group"
+              >
+                <div className="relative">
+                  {hasUnread ? (
+                    <div className="story-ring p-[2.5px] rounded-full">
+                      <div className="bg-dark-bg rounded-full p-0.5">
+                        <div className="w-14 h-14 rounded-full bg-dark-elevated flex items-center justify-center text-2xl">
+                          {group.user.avatar || '😎'}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-dark-elevated border-2 border-surface-600/40 flex items-center justify-center text-2xl opacity-70">
+                      {group.user.avatar || '😎'}
+                    </div>
+                  )}
+                </div>
+                <span className="text-[11px] text-white/60 truncate w-16 text-center group-hover:text-white/90 transition-colors leading-tight">
+                  {group.user.username.split('.')[0]}
+                </span>
+              </button>
+            );
+          })}
+
+          {/* ── Empty state when no stories ── */}
+          {!loading && displayGroups.length === 0 && (
+            <div className="flex items-center pl-2">
+              <p className="text-xs text-surface-500">
+                No stories yet — follow people or create your first!
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* ── Story Viewer ── */}
+      {viewingIndex !== null && groups[viewingIndex] && (
+        <StoryViewer
+          group={groups[viewingIndex]}
+          onClose={closeViewer}
+          onNext={() => {
+            const next = viewingIndex + 1;
+            if (next < groups.length) setViewingIndex(next);
+            else closeViewer();
+          }}
+          onPrev={() => {
+            const prev = viewingIndex - 1;
+            if (prev >= 0) setViewingIndex(prev);
+            else closeViewer();
+          }}
+          hasNext={viewingIndex < groups.length - 1}
+          hasPrev={viewingIndex > 0}
+        />
+      )}
+
+      {/* ── Story Creator ── */}
+      {showCreator && (
+        <StoryCreator
+          onClose={() => setShowCreator(false)}
+          onCreated={handleCreated}
+        />
+      )}
+    </>
   );
 }
