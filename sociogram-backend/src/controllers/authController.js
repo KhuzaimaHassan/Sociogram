@@ -126,3 +126,56 @@ export async function getMe(req, res, next) {
     next(err);
   }
 }
+
+// POST /api/auth/change-password
+export async function changePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashed },
+    });
+
+    res.json({ ok: true, message: 'Password changed successfully' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/auth/account
+export async function deleteAccount(req, res, next) {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required to delete account' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(401).json({ error: 'Password is incorrect' });
+    }
+
+    // Cascade delete via Prisma (all posts, follows, messages, stories etc.)
+    await prisma.user.delete({ where: { id: req.user.id } });
+
+    res.json({ ok: true, message: 'Account deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
