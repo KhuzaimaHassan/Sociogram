@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Sociogram",
+    "slug": "sociogram-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0a0a0f"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sociogram.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Sociogram uses your camera to detect facial expressions and post emoji reactions automatically.",
+        "NSMicrophoneUsageDescription": "Microphone access is needed for video recording."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0a0f",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.sociogram.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Sociogram to access your camera for Expression Reactions.",
+          "microphonePermission": "Allow Sociogram to access your microphone for video.",
+          "recordAudioAndroid": true
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiUrl": "https://sociogram-api-rt4f.onrender.com"
+    }
+  }
+}
