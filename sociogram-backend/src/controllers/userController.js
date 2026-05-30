@@ -127,24 +127,127 @@ export async function searchUsers(req, res, next) {
       return res.json([]);
     }
 
-    // NOTE: `mode: 'insensitive'` is Postgres-only. We strip it for portability
-    // (SQLite uses ASCII-insensitive LIKE by default, which is fine for usernames).
     const insensitive = process.env.DATABASE_PROVIDER === 'postgresql'
       ? { mode: 'insensitive' }
       : {};
 
+    const myId = req.user.id;
+
     const users = await prisma.user.findMany({
       where: {
+        id: { not: myId },
         OR: [
           { username: { contains: q, ...insensitive } },
           { displayName: { contains: q, ...insensitive } },
         ],
       },
-      select: { id: true, username: true, displayName: true, avatar: true },
+      select: {
+        id: true, username: true, displayName: true, avatar: true,
+        _count: { select: { followers: true, posts: true } },
+        followers: { where: { followerId: myId }, select: { id: true } },
+      },
       take: 20,
     });
 
-    res.json(users);
+    res.json(users.map((u) => ({
+      ...u,
+      isFollowing: u.followers.length > 0,
+      followers: undefined,
+    })));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/users/:id/followers
+export async function getFollowers(req, res, next) {
+  try {
+    const myId = req.user?.id;
+    const follows = await prisma.follow.findMany({
+      where: { followingId: req.params.id },
+      include: {
+        follower: {
+          select: { id: true, username: true, displayName: true, avatar: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    // Attach isFollowing for each listed user
+    let followingSet = new Set();
+    if (myId) {
+      const myFollows = await prisma.follow.findMany({
+        where: { followerId: myId, followingId: { in: follows.map(f => f.follower.id) } },
+        select: { followingId: true },
+      });
+      followingSet = new Set(myFollows.map(f => f.followingId));
+    }
+
+    res.json(follows.map((f) => ({
+      ...f.follower,
+      isFollowing: followingSet.has(f.follower.id),
+    })));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/users/:id/following
+export async function getFollowing(req, res, next) {
+  try {
+    const myId = req.user?.id;
+    const follows = await prisma.follow.findMany({
+      where: { followerId: req.params.id },
+      include: {
+        following: {
+          select: { id: true, username: true, displayName: true, avatar: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    let followingSet = new Set();
+    if (myId) {
+      const myFollows = await prisma.follow.findMany({
+        where: { followerId: myId, followingId: { in: follows.map(f => f.following.id) } },
+        select: { followingId: true },
+      });
+      followingSet = new Set(myFollows.map(f => f.followingId));
+    }
+
+    res.json(follows.map((f) => ({
+      ...f.following,
+      isFollowing: followingSet.has(f.following.id),
+    })));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/users/suggested — people I don't follow yet
+export async function getSuggested(req, res, next) {
+  try {
+    const myId = req.user.id;
+
+    const alreadyFollowing = await prisma.follow.findMany({
+      where: { followerId: myId },
+      select: { followingId: true },
+    });
+    const excludeIds = [myId, ...alreadyFollowing.map(f => f.followingId)];
+
+    const users = await prisma.user.findMany({
+      where: { id: { notIn: excludeIds } },
+      select: {
+        id: true, username: true, displayName: true, avatar: true, bio: true,
+        _count: { select: { followers: true, posts: true } },
+      },
+      orderBy: { followers: { _count: 'desc' } },
+      take: 8,
+    });
+
+    res.json(users.map((u) => ({ ...u, isFollowing: false })));
   } catch (err) {
     next(err);
   }

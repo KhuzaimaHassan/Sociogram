@@ -20,3 +20,15 @@ export function searchUsers(query) {
   if (!query || query.length < 2) return Promise.resolve([]);
   return api.get(`/api/users/search?q=${encodeURIComponent(query)}`);
 }
+
+export function getFollowers(userId) {
+  return api.get(`/api/users/${userId}/followers`);
+}
+
+export function getFollowing(userId) {
+  return api.get(`/api/users/${userId}/following`);
+}
+
+export function getSuggested() {
+  return api.get('/api/users/suggested');
+}
