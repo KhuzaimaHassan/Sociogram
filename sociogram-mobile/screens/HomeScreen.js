@@ -1,12 +1,11 @@
 /**
- * HomeScreen.js — Feed screen
- * - Loads posts from /api/posts
- * - FlatList with pull-to-refresh
- * - PostCard per item
- * - Expression camera floating button
+ * HomeScreen.js — Feed with posts + expression camera FAB
  */
 
-import { View, FlatList, Text, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import {
+  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  RefreshControl, ActivityIndicator,
+} from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../services/api';
@@ -18,39 +17,44 @@ export default function HomeScreen({ navigation }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [cursor, setCursor] = useState(null);
+  const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [camVisible, setCamVisible] = useState(false);
   const [currentPostId, setCurrentPostId] = useState(null);
 
-  const loadFeed = useCallback(async (reset = false) => {
+  async function fetchPosts(reset = false) {
     try {
-      const params = reset || !cursor ? '' : `?cursor=${cursor}`;
-      const data = await api.get(`/api/posts${params}`);
+      const skip = reset ? 0 : posts.length;
+      const data = await api.get(`/api/posts?skip=${skip}&limit=10`);
       const newPosts = data.posts || [];
-      setPosts((prev) => reset ? newPosts : [...prev, ...newPosts]);
-      setCursor(data.nextCursor || null);
-      setHasMore(!!data.nextCursor);
+      if (reset) setPosts(newPosts);
+      else setPosts((p) => [...p, ...newPosts]);
+      setHasMore(newPosts.length === 10);
     } catch (err) {
       console.warn('Feed error:', err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  }, [cursor]);
+  }
 
-  useEffect(() => { loadFeed(true); }, []);
+  useEffect(() => { fetchPosts(true); }, []);
 
-  const onRefresh = useCallback(() => {
+  function onRefresh() {
     setRefreshing(true);
-    setCursor(null);
-    loadFeed(true);
-  }, []);
+    fetchPosts(true);
+  }
 
-  function handleViewPost(post) {
+  function onEndReached() {
+    if (!hasMore || loadingMore || loading) return;
+    setLoadingMore(true);
+    fetchPosts(false);
+  }
+
+  function handleOpenPost(post) {
     setCurrentPostId(post.id);
-    setCamVisible(true);
-    // navigate to comments or just show it
   }
 
   return (
@@ -59,10 +63,10 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.header}>
         <Text style={styles.logo}>Sociogram</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.headerBtn}>
+          <TouchableOpacity style={styles.headerBtn}>
             <Text style={{ fontSize: 22 }}>🔔</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Messages')} style={styles.headerBtn}>
+          <TouchableOpacity style={styles.headerBtn}>
             <Text style={{ fontSize: 22 }}>✉️</Text>
           </TouchableOpacity>
         </View>
@@ -71,38 +75,47 @@ export default function HomeScreen({ navigation }) {
       {loading && posts.length === 0 ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.brand} size="large" />
+          <Text style={styles.loadingText}>Loading feed…</Text>
         </View>
       ) : (
         <FlatList
           data={posts}
           keyExtractor={(p) => p.id}
           renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              onPress={() => handleViewPost(item)}
-            />
+            <PostCard post={item} onPress={() => handleOpenPost(item)} />
           )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
-          onEndReached={() => hasMore && !loading && loadFeed(false)}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
+          }
+          onEndReached={onEndReached}
           onEndReachedThreshold={0.5}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🌌</Text>
-              <Text style={styles.emptyTitle}>Nothing in your feed yet</Text>
+              <Text style={styles.emptyTitle}>Nothing in your feed</Text>
               <Text style={styles.emptyDesc}>Follow people to see their posts here</Text>
             </View>
           }
-          ListFooterComponent={hasMore ? <ActivityIndicator color={colors.brand} style={{ padding: 20 }} /> : null}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
+          ListFooterComponent={
+            loadingMore
+              ? <ActivityIndicator color={colors.brand} style={{ padding: 20 }} />
+              : null
+          }
         />
       )}
 
       {/* Expression Camera FAB */}
-      <TouchableOpacity style={styles.fab} onPress={() => setCamVisible(true)} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setCamVisible(true)}
+        activeOpacity={0.85}
+      >
         <Text style={{ fontSize: 24 }}>🎭</Text>
       </TouchableOpacity>
 
+      {/* Expression Camera Modal */}
       {camVisible && (
         <ExpressionCamera
           postId={currentPostId || posts[0]?.id}
@@ -122,13 +135,14 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container:   { flex: 1, backgroundColor: colors.bg },
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.base, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  logo:        { fontSize: font.lg, fontWeight: '800', color: colors.brand, letterSpacing: -0.5 },
+  logo:        { fontSize: font.lg, fontWeight: '900', color: colors.brand, letterSpacing: -0.5 },
   headerRight: { flexDirection: 'row', gap: spacing.sm },
-  headerBtn:   { padding: 4 },
-  loader:      { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  headerBtn:   { padding: 6 },
+  loader:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  loadingText: { color: colors.muted, fontSize: font.sm },
   empty:       { alignItems: 'center', paddingTop: 80, paddingHorizontal: spacing.xl },
   emptyIcon:   { fontSize: 48, marginBottom: spacing.md },
   emptyTitle:  { color: colors.white, fontSize: font.md, fontWeight: '700', marginBottom: 6 },
   emptyDesc:   { color: colors.muted, fontSize: font.sm, textAlign: 'center' },
-  fab:         { position: 'absolute', bottom: 100, right: 20, width: 54, height: 54, borderRadius: 27, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', shadowColor: colors.brand, shadowOpacity: 0.5, shadowRadius: 12, elevation: 8 },
+  fab:         { position: 'absolute', bottom: 90, right: 20, width: 54, height: 54, borderRadius: 27, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', shadowColor: colors.brand, shadowOpacity: 0.5, shadowRadius: 12, elevation: 8 },
 });
