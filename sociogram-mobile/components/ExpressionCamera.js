@@ -1,171 +1,116 @@
 /**
- * ExpressionCamera.js — Expression detection using expo-camera SDK 56
+ * ExpressionCamera.js — Expression Reaction Picker (SDK 54 compatible)
  *
- * Uses CameraView with onFacesDetected (built-in, no separate package needed).
- * Detects: happy (smile), sad (closed eyes + no smile), surprised (eyes wide open).
+ * Since expo-camera 16 removed onFacesDetected, this component uses
+ * expo-camera for a LIVE PREVIEW (so the user can see themselves) while
+ * showing an emoji picker overlay. The user sees their own face and taps
+ * the emoji that matches their expression — same UX, works everywhere.
+ *
+ * On devices/permissions where camera is unavailable, falls back to
+ * a pure emoji picker sheet.
  */
 
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Animated } from 'react-native';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet,
+  Dimensions, Animated, Platform,
+} from 'react-native';
+import { useState, useRef, useEffect } from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { colors, font, spacing, radius } from '../theme';
 
-const { width: SW } = Dimensions.get('window');
+const { width: SW, height: SH } = Dimensions.get('window');
 
-const EXPRESSIONS = {
-  happy:     { emoji: '😍', label: 'Happy 😊',    color: '#ff6b9d' },
-  sad:       { emoji: '😢', label: 'Sad 😢',      color: '#64b5f6' },
-  surprised: { emoji: '😮', label: 'Surprised!',  color: '#ffd54f' },
-  neutral:   { emoji: null,  label: 'Neutral',     color: colors.muted },
-};
-
-function classify(face) {
-  const smile = face.smilingProbability    ?? 0;
-  const lEye  = face.leftEyeOpenProbability  ?? 1;
-  const rEye  = face.rightEyeOpenProbability ?? 1;
-  const eyes  = (lEye + rEye) / 2;
-  if (smile > 0.65)            return 'happy';
-  if (smile < 0.2 && eyes < 0.35) return 'sad';
-  if (smile < 0.45 && eyes > 0.82) return 'surprised';
-  return 'neutral';
-}
-
-const REQUIRED = 8; // stable frames before posting
+const REACTIONS = [
+  { emoji: '😍', label: 'Love it!' },
+  { emoji: '😮', label: 'Wow!'    },
+  { emoji: '😂', label: 'Haha!'   },
+  { emoji: '😢', label: 'Sad'     },
+  { emoji: '😠', label: 'Angry'   },
+  { emoji: '👏', label: 'Clap!'   },
+];
 
 export default function ExpressionCamera({ postId, onReaction, onClose }) {
   const [permission, requestPermission] = useCameraPermissions();
-  const [detected, setDetected] = useState(null);
-  const [done, setDone]    = useState(false);
-  const [showUndo, setShowUndo] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [done, setDone] = useState(false);
+  const scaleAnims = useRef(REACTIONS.map(() => new Animated.Value(1))).current;
+  const doneAnim = useRef(new Animated.Value(0)).current;
 
-  const stableRef  = useRef(0);
-  const lastExpr   = useRef(null);
-  const undoTimer  = useRef(null);
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  function handlePick(idx) {
+    const { emoji } = REACTIONS[idx];
+    setSelected(idx);
 
-  useEffect(() => {
-    if (!permission?.granted) requestPermission();
-    return () => clearTimeout(undoTimer.current);
-  }, []);
+    // Bounce animation on selected emoji
+    Animated.sequence([
+      Animated.spring(scaleAnims[idx], { toValue: 1.5, useNativeDriver: true, speed: 30 }),
+      Animated.spring(scaleAnims[idx], { toValue: 1,   useNativeDriver: true, speed: 20 }),
+    ]).start();
 
-  const handleFaces = useCallback(({ faces }) => {
-    if (done || !faces?.length) {
-      stableRef.current = 0;
-      lastExpr.current  = null;
-      setDetected(null);
-      progressAnim.setValue(0);
-      return;
-    }
+    // Fade in done overlay
+    Animated.timing(doneAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
 
-    const expr = classify(faces[0]);
+    setDone(true);
+    onReaction?.(emoji);
 
-    if (expr === lastExpr.current) {
-      stableRef.current += 1;
-    } else {
-      stableRef.current = 1;
-      lastExpr.current  = expr;
-      progressAnim.setValue(0);
-    }
-
-    const pct = Math.min(stableRef.current / REQUIRED, 1);
-    Animated.timing(progressAnim, { toValue: pct, duration: 80, useNativeDriver: false }).start();
-    setDetected(EXPRESSIONS[expr] ?? EXPRESSIONS.neutral);
-
-    if (stableRef.current >= REQUIRED && expr !== 'neutral') {
-      setDone(true);
-      onReaction?.(EXPRESSIONS[expr].emoji);
-      setShowUndo(true);
-      undoTimer.current = setTimeout(() => { setShowUndo(false); onClose(); }, 3500);
-    }
-  }, [done]);
-
-  function handleUndo() {
-    clearTimeout(undoTimer.current);
-    onClose();
+    // Auto close after 2.5s
+    setTimeout(() => onClose(), 2500);
   }
 
-  if (!permission) return null;
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.permBox}>
-        <Text style={styles.permTitle}>📷 Camera Permission</Text>
-        <Text style={styles.permDesc}>Sociogram needs your camera to detect facial expressions and post reactions automatically.</Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.permBtn}>
-          <Text style={styles.permBtnText}>Grant Permission</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onClose} style={{ marginTop: 12 }}>
-          <Text style={{ color: colors.muted, fontSize: font.sm }}>Not now</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const cameraReady = permission?.granted;
 
   return (
     <View style={styles.root}>
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        facing="front"
-        onFacesDetected={handleFaces}
-        faceDetectorSettings={{
-          mode: 'fast',
-          detectLandmarks: 'none',
-          runClassifications: 'all',
-          minDetectionInterval: 100,
-          tracking: true,
-        }}
-      />
+      {/* Camera preview or dark background */}
+      {cameraReady ? (
+        <CameraView style={StyleSheet.absoluteFill} facing="front" />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a14' }]} />
+      )}
 
+      {/* Dark overlay */}
       <View style={styles.overlay}>
-        {/* Close */}
+
+        {/* Close button */}
         <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-          <Text style={{ color: colors.white, fontSize: font.md, fontWeight: '700' }}>✕</Text>
+          <Text style={styles.closeTxt}>✕</Text>
         </TouchableOpacity>
 
         {/* Title */}
-        <View style={styles.topText}>
-          <Text style={styles.title}>🎭 Expression Reactions</Text>
-          <Text style={styles.sub}>Hold an expression steady for ~1 second</Text>
+        <View style={styles.top}>
+          <Text style={styles.title}>🎭 How does this post make you feel?</Text>
+          <Text style={styles.sub}>Tap the emoji that matches your expression</Text>
         </View>
 
-        {/* Oval face guide */}
-        <View style={styles.ovalGuide} />
-
-        {/* Detected expression */}
-        {detected?.emoji ? (
-          <View style={[styles.bubble, { borderColor: detected.color }]}>
-            <Text style={{ fontSize: 52 }}>{detected.emoji}</Text>
-            <Text style={[styles.exprLabel, { color: detected.color }]}>{detected.label}</Text>
+        {/* Emoji grid */}
+        {!done ? (
+          <View style={styles.grid}>
+            {REACTIONS.map(({ emoji, label }, idx) => (
+              <TouchableOpacity
+                key={emoji}
+                onPress={() => handlePick(idx)}
+                activeOpacity={0.7}
+                style={styles.reactionCell}
+              >
+                <Animated.Text style={[styles.reactionEmoji, { transform: [{ scale: scaleAnims[idx] }] }]}>
+                  {emoji}
+                </Animated.Text>
+                <Text style={styles.reactionLabel}>{label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         ) : (
-          <View style={styles.bubble}>
-            <Text style={{ fontSize: 28 }}>👤</Text>
-            <Text style={styles.hintText}>Face the camera</Text>
-          </View>
+          <Animated.View style={[styles.doneBox, { opacity: doneAnim }]}>
+            <Text style={styles.doneEmoji}>{REACTIONS[selected]?.emoji}</Text>
+            <Text style={styles.doneTitle}>Reaction posted!</Text>
+            <Text style={styles.doneSub}>{REACTIONS[selected]?.label}</Text>
+          </Animated.View>
         )}
 
-        {/* Progress bar */}
-        {!done && (
-          <View style={styles.progressTrack}>
-            <Animated.View style={[
-              styles.progressBar,
-              { width: progressWidth, backgroundColor: detected?.color || colors.brand }
-            ]} />
-          </View>
-        )}
-
-        {/* Done / Undo */}
-        {done && (
-          <View style={styles.doneWrap}>
-            <Text style={styles.doneText}>{detected?.emoji} Reaction posted!</Text>
-            {showUndo && (
-              <TouchableOpacity onPress={handleUndo} style={styles.undoBtn}>
-                <Text style={styles.undoText}>Undo (tap)</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+        {/* Camera permission hint */}
+        {!cameraReady && (
+          <TouchableOpacity onPress={requestPermission} style={styles.camHint}>
+            <Text style={styles.camHintText}>📷 Enable camera to see yourself</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
@@ -173,26 +118,21 @@ export default function ExpressionCamera({ postId, onReaction, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  root:         { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
-  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'space-evenly', paddingHorizontal: spacing.xl },
-  closeBtn:     { position: 'absolute', top: 54, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  topText:      { alignItems: 'center', marginTop: 48 },
-  title:        { color: colors.white, fontSize: font.lg, fontWeight: '800', textAlign: 'center' },
-  sub:          { color: colors.muted, fontSize: font.xs, textAlign: 'center', marginTop: 4 },
-  ovalGuide:    { width: 190, height: 250, borderRadius: 95, borderWidth: 2, borderColor: 'rgba(255,255,255,0.28)', borderStyle: 'dashed' },
-  bubble:       { alignItems: 'center', minWidth: 130, padding: spacing.md, borderRadius: radius.xl, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(0,0,0,0.55)' },
-  exprLabel:    { fontSize: font.sm, fontWeight: '700', marginTop: 6 },
-  hintText:     { color: colors.muted, fontSize: font.xs, marginTop: 6 },
-  progressTrack:{ width: SW - 80, height: 5, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 3, overflow: 'hidden' },
-  progressBar:  { height: '100%', borderRadius: 3 },
-  doneWrap:     { alignItems: 'center', gap: spacing.sm },
-  doneText:     { color: colors.white, fontSize: font.md, fontWeight: '800' },
-  undoBtn:      { backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: radius.full, paddingHorizontal: 28, paddingVertical: 10 },
-  undoText:     { color: colors.white, fontWeight: '600', fontSize: font.sm },
-  // Permission screen
-  permBox:      { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl },
-  permTitle:    { color: colors.white, fontSize: font.lg, fontWeight: '800', marginBottom: spacing.md },
-  permDesc:     { color: colors.muted, fontSize: font.sm, textAlign: 'center', lineHeight: 22, marginBottom: spacing.xl },
-  permBtn:      { backgroundColor: colors.brand, borderRadius: radius.xl, paddingHorizontal: 32, paddingVertical: 14 },
-  permBtnText:  { color: colors.white, fontWeight: '700', fontSize: font.base },
+  root:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
+  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'space-evenly', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: 48 },
+  closeBtn:      { position: 'absolute', top: 52, right: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  closeTxt:      { color: colors.white, fontSize: 16, fontWeight: '700' },
+  top:           { alignItems: 'center', paddingTop: 40 },
+  title:         { color: colors.white, fontSize: font.md, fontWeight: '800', textAlign: 'center', lineHeight: 26 },
+  sub:           { color: colors.muted, fontSize: font.xs, textAlign: 'center', marginTop: 8 },
+  grid:          { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.md, width: SW - 40 },
+  reactionCell:  { alignItems: 'center', width: (SW - 80) / 3, paddingVertical: spacing.md, borderRadius: radius.xl, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  reactionEmoji: { fontSize: 44 },
+  reactionLabel: { color: colors.muted, fontSize: font.xs, marginTop: 6, fontWeight: '600' },
+  doneBox:       { alignItems: 'center', gap: spacing.sm },
+  doneEmoji:     { fontSize: 80 },
+  doneTitle:     { color: colors.white, fontSize: font.lg, fontWeight: '800' },
+  doneSub:       { color: colors.muted, fontSize: font.sm },
+  camHint:       { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.08)' },
+  camHintText:   { color: colors.muted, fontSize: font.xs },
 });

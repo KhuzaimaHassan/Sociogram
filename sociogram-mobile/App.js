@@ -1,20 +1,15 @@
 /**
- * App.js — Root of Sociogram Mobile
- *
- * Navigation:
- *   AuthStack → AuthScreen (login + register)
- *   AppTabs   → Home | Explore | Messages | Profile
+ * App.js — Root of Sociogram Mobile (SDK 54 compatible)
  */
 
 import { StatusBar, ActivityIndicator, View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { colors, font, spacing } from './theme';
+import { colors, font } from './theme';
 
 import HomeScreen     from './screens/HomeScreen';
 import ExploreScreen  from './screens/ExploreScreen';
@@ -22,7 +17,7 @@ import MessagesScreen from './screens/MessagesScreen';
 import ProfileScreen  from './screens/ProfileScreen';
 import AuthScreen     from './screens/AuthScreen';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
 const NAV_THEME = {
@@ -97,12 +92,7 @@ function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        cardStyle: { backgroundColor: colors.bg },
-      }}
-    >
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       {user ? (
         <>
           <Stack.Screen name="Main"    component={AppTabs} />
@@ -118,7 +108,7 @@ function RootNavigator() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} translucent={false} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
       <AuthProvider>
         <NavigationContainer theme={NAV_THEME}>
           <RootNavigator />
