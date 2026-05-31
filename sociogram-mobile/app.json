@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
     "splash": {
       "backgroundColor": "#0a0a0f"
     },
@@ -14,8 +13,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.sociogram.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Sociogram uses your camera to detect facial expressions and post emoji reactions automatically.",
-        "NSMicrophoneUsageDescription": "Microphone access is needed for video recording."
+        "NSCameraUsageDescription": "Sociogram uses your camera to automatically detect your facial expression and post emoji reactions.",
+        "NSMicrophoneUsageDescription": "Microphone access is needed alongside the camera."
       }
     },
     "android": {
@@ -34,11 +33,10 @@
     },
     "plugins": [
       [
-        "expo-camera",
+        "react-native-vision-camera",
         {
-          "cameraPermission": "Allow Sociogram to access your camera for Expression Reactions.",
-          "microphonePermission": "Allow Sociogram to access your microphone for video.",
-          "recordAudioAndroid": true
+          "cameraPermissionText": "Sociogram uses your camera to detect facial expressions and auto-post emoji reactions.",
+          "enableMicrophonePermission": false
         }
       ]
     ],
