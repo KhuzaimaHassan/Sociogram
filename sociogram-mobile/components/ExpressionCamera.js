@@ -1,138 +1,194 @@
 /**
- * ExpressionCamera.js — Expression Reaction Picker (SDK 54 compatible)
+ * ExpressionCamera.js — Automatic Face Expression Reactions (Expo Go SDK 54)
  *
- * Since expo-camera 16 removed onFacesDetected, this component uses
- * expo-camera for a LIVE PREVIEW (so the user can see themselves) while
- * showing an emoji picker overlay. The user sees their own face and taps
- * the emoji that matches their expression — same UX, works everywhere.
+ * ARCHITECTURE:
+ *   1. Request OS camera permission via expo-camera (required before WebView can use it)
+ *   2. Load https://sociogram-rho.vercel.app/expression in a react-native-webview
+ *   3. The hosted page runs face-api.js (same as the web app) with getUserMedia
+ *   4. Results come back via window.ReactNativeWebView.postMessage → onMessage
+ *   5. We fire onReaction(emoji, expression) and onClose() accordingly
  *
- * On devices/permissions where camera is unavailable, falls back to
- * a pure emoji picker sheet.
+ * WHY WEBVIEW:
+ *   - expo-face-detector is REMOVED from expo-camera SDK 54
+ *   - @tensorflow/tfjs-react-native requires expo-gl (not in Expo Go)
+ *   - react-native-webview IS bundled in Expo Go
+ *   - HTTPS pages can access camera via getUserMedia inside WebView
+ *   - face-api.js models are already deployed at /models on Vercel
+ *
+ * This preserves 100% of the original automatic detection feature.
  */
 
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  Dimensions, Animated, Platform,
-} from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { WebView } from 'react-native-webview';
+import { useCameraPermissions } from 'expo-camera';
 import { colors, font, spacing, radius } from '../theme';
 
-const { width: SW, height: SH } = Dimensions.get('window');
+const EXPRESSION_URL = 'https://sociogram-rho.vercel.app/expression';
 
-const REACTIONS = [
-  { emoji: '😍', label: 'Love it!' },
-  { emoji: '😮', label: 'Wow!'    },
-  { emoji: '😂', label: 'Haha!'   },
-  { emoji: '😢', label: 'Sad'     },
-  { emoji: '😠', label: 'Angry'   },
-  { emoji: '👏', label: 'Clap!'   },
-];
-
-export default function ExpressionCamera({ postId, onReaction, onClose }) {
+export default function ExpressionCamera({ onReaction, onClose }) {
   const [permission, requestPermission] = useCameraPermissions();
-  const [selected, setSelected] = useState(null);
-  const [done, setDone] = useState(false);
-  const scaleAnims = useRef(REACTIONS.map(() => new Animated.Value(1))).current;
-  const doneAnim = useRef(new Animated.Value(0)).current;
+  const [permAsked, setPermAsked]       = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(false);
+  const webViewRef = useRef(null);
 
-  function handlePick(idx) {
-    const { emoji } = REACTIONS[idx];
-    setSelected(idx);
+  // Step 1: Request OS camera permission before the WebView loads
+  useEffect(() => {
+    if (!permission?.granted && !permAsked) {
+      setPermAsked(true);
+      requestPermission();
+    }
+  }, [permission, permAsked]);
 
-    // Bounce animation on selected emoji
-    Animated.sequence([
-      Animated.spring(scaleAnims[idx], { toValue: 1.5, useNativeDriver: true, speed: 30 }),
-      Animated.spring(scaleAnims[idx], { toValue: 1,   useNativeDriver: true, speed: 20 }),
-    ]).start();
+  function handleMessage(event) {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
 
-    // Fade in done overlay
-    Animated.timing(doneAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      switch (data.type) {
+        case 'READY':
+          // Models loaded, camera streaming — hide loading indicator
+          setLoading(false);
+          break;
 
-    setDone(true);
-    onReaction?.(emoji);
+        case 'EXPRESSION':
+          // face-api.js detected a stable expression automatically
+          onReaction?.(data.emoji, data.expression);
+          break;
 
-    // Auto close after 2.5s
-    setTimeout(() => onClose(), 2500);
+        case 'CLOSE':
+          onClose?.();
+          break;
+
+        case 'ERROR':
+          console.warn('[ExpressionCamera] page error:', data.message);
+          setError(true);
+          setLoading(false);
+          break;
+
+        default:
+          break;
+      }
+    } catch {
+      // Not JSON — ignore bridge noise
+    }
   }
 
-  const cameraReady = permission?.granted;
+  // Grant camera permission when WebView's web page asks for it
+  // This is the CRITICAL step for Android getUserMedia to work
+  function handlePermissionRequest(event) {
+    event.grant(event.resources);
+  }
+
+  function handleWebViewError() {
+    setError(true);
+    setLoading(false);
+  }
+
+  // Show permission request UI if denied
+  if (permission && !permission.granted) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.centeredBox}>
+          <Text style={{ fontSize: 48, marginBottom: spacing.md }}>📷</Text>
+          <Text style={styles.permTitle}>Camera Permission Needed</Text>
+          <Text style={styles.permDesc}>
+            Sociogram uses your camera to automatically detect your facial expression and react to posts.
+          </Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
+            <Text style={styles.primaryBtnText}>Allow Camera</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={{ marginTop: spacing.md }}>
+            <Text style={{ color: colors.muted, fontSize: font.sm }}>Not now</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
-      {/* Camera preview or dark background */}
-      {cameraReady ? (
-        <CameraView style={StyleSheet.absoluteFill} facing="front" />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0a14' }]} />
+      {/* Loading overlay — shown until face-api READY message arrives */}
+      {loading && !error && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator color={colors.brand} size="large" />
+          <Text style={styles.loadingTitle}>Loading expression AI…</Text>
+          <Text style={styles.loadingSubText}>
+            TinyFaceDetector + FaceExpressionNet{'\n'}Powered by face-api.js
+          </Text>
+        </View>
       )}
 
-      {/* Dark overlay */}
-      <View style={styles.overlay}>
-
-        {/* Close button */}
-        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-          <Text style={styles.closeTxt}>✕</Text>
-        </TouchableOpacity>
-
-        {/* Title */}
-        <View style={styles.top}>
-          <Text style={styles.title}>🎭 How does this post make you feel?</Text>
-          <Text style={styles.sub}>Tap the emoji that matches your expression</Text>
-        </View>
-
-        {/* Emoji grid */}
-        {!done ? (
-          <View style={styles.grid}>
-            {REACTIONS.map(({ emoji, label }, idx) => (
-              <TouchableOpacity
-                key={emoji}
-                onPress={() => handlePick(idx)}
-                activeOpacity={0.7}
-                style={styles.reactionCell}
-              >
-                <Animated.Text style={[styles.reactionEmoji, { transform: [{ scale: scaleAnims[idx] }] }]}>
-                  {emoji}
-                </Animated.Text>
-                <Text style={styles.reactionLabel}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <Animated.View style={[styles.doneBox, { opacity: doneAnim }]}>
-            <Text style={styles.doneEmoji}>{REACTIONS[selected]?.emoji}</Text>
-            <Text style={styles.doneTitle}>Reaction posted!</Text>
-            <Text style={styles.doneSub}>{REACTIONS[selected]?.label}</Text>
-          </Animated.View>
-        )}
-
-        {/* Camera permission hint */}
-        {!cameraReady && (
-          <TouchableOpacity onPress={requestPermission} style={styles.camHint}>
-            <Text style={styles.camHintText}>📷 Enable camera to see yourself</Text>
+      {/* Error state */}
+      {error && (
+        <View style={styles.centeredBox}>
+          <Text style={{ fontSize: 48, marginBottom: spacing.md }}>⚠️</Text>
+          <Text style={styles.permTitle}>Could not load detector</Text>
+          <Text style={styles.permDesc}>
+            Check your internet connection.{'\n'}The expression AI runs on our servers.
+          </Text>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => {
+              setError(false);
+              setLoading(true);
+              webViewRef.current?.reload();
+            }}
+          >
+            <Text style={styles.primaryBtnText}>Retry</Text>
           </TouchableOpacity>
-        )}
-      </View>
+          <TouchableOpacity onPress={onClose} style={{ marginTop: spacing.md }}>
+            <Text style={{ color: colors.muted, fontSize: font.sm }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* The WebView — loads face-api.js expression detector page */}
+      {!error && permission?.granted && (
+        <WebView
+          ref={webViewRef}
+          source={{ uri: EXPRESSION_URL }}
+          style={styles.webView}
+          // Enable JS and media
+          javaScriptEnabled
+          domStorageEnabled
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          // Handle messages from the page
+          onMessage={handleMessage}
+          // CRITICAL: Grant camera/mic to the web page on Android
+          onPermissionRequest={handlePermissionRequest}
+          // iOS camera grant
+          mediaCapturePermissionGrantType="grant"
+          // Error handling
+          onError={handleWebViewError}
+          onHttpError={handleWebViewError}
+          // Allow our Vercel domain
+          originWhitelist={['https://*']}
+          mixedContentMode="never"
+        />
+      )}
+
+      {/* Close button — always visible */}
+      {!loading && !error && (
+        <TouchableOpacity style={styles.floatingClose} onPress={onClose}>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>✕</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 },
-  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'space-evenly', alignItems: 'center', paddingHorizontal: spacing.xl, paddingVertical: 48 },
-  closeBtn:      { position: 'absolute', top: 52, right: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
-  closeTxt:      { color: colors.white, fontSize: 16, fontWeight: '700' },
-  top:           { alignItems: 'center', paddingTop: 40 },
-  title:         { color: colors.white, fontSize: font.md, fontWeight: '800', textAlign: 'center', lineHeight: 26 },
-  sub:           { color: colors.muted, fontSize: font.xs, textAlign: 'center', marginTop: 8 },
-  grid:          { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.md, width: SW - 40 },
-  reactionCell:  { alignItems: 'center', width: (SW - 80) / 3, paddingVertical: spacing.md, borderRadius: radius.xl, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  reactionEmoji: { fontSize: 44 },
-  reactionLabel: { color: colors.muted, fontSize: font.xs, marginTop: 6, fontWeight: '600' },
-  doneBox:       { alignItems: 'center', gap: spacing.sm },
-  doneEmoji:     { fontSize: 80 },
-  doneTitle:     { color: colors.white, fontSize: font.lg, fontWeight: '800' },
-  doneSub:       { color: colors.muted, fontSize: font.sm },
-  camHint:       { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.08)' },
-  camHintText:   { color: colors.muted, fontSize: font.xs },
+  root:           { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: '#0a0a14' },
+  webView:        { flex: 1 },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 10, backgroundColor: '#0a0a14', alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  loadingTitle:   { color: colors.white, fontSize: font.md, fontWeight: '700' },
+  loadingSubText: { color: colors.muted, fontSize: font.xs, textAlign: 'center', lineHeight: 18 },
+  centeredBox:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  permTitle:      { color: colors.white, fontSize: font.md, fontWeight: '800', textAlign: 'center', marginBottom: spacing.sm },
+  permDesc:       { color: colors.muted, fontSize: font.sm, textAlign: 'center', lineHeight: 20, marginBottom: spacing.xl },
+  primaryBtn:     { backgroundColor: colors.brand, borderRadius: radius.xl, paddingHorizontal: 32, paddingVertical: 14 },
+  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: font.base },
+  floatingClose:  { position: 'absolute', top: 52, right: 16, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', zIndex: 20 },
 });

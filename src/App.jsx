@@ -18,6 +18,7 @@ import Register from './pages/Register';
 import CreatePost from './pages/CreatePost';
 import Messages from './pages/Messages';
 import Chat from './pages/Chat';
+import ExpressionDetector from './pages/ExpressionDetector';
 
 function ProtectedShell({ children }) {
   const location = useLocation();
@@ -64,6 +65,9 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        {/* Standalone page for React Native WebView — no nav, no auth */}
+        <Route path="/expression" element={<ExpressionDetector />} />
+
         {/* Public routes */}
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
