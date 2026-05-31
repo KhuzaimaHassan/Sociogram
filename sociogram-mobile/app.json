@@ -3,10 +3,10 @@
     "name": "Sociogram",
     "slug": "sociogram-mobile",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
+    "newArchEnabled": false,
     "splash": {
       "backgroundColor": "#0a0a0f"
     },
