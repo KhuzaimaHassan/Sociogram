@@ -30,6 +30,12 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .map((o) => o.trim())
   .filter(Boolean);
 
+// ── Health Check ─────────────────────────────────────────
+// Placed before rate limiters and security headers so internal pings never timeout
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // ── Middleware ──────────────────────────────────────────
 // Set security HTTP headers
 app.use(helmet());
@@ -67,10 +73,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // ── Routes ─────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
