@@ -6,8 +6,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import xss from 'xss-clean';
-import hpp from 'hpp';
 
 import authRoutes from './routes/authRoutes.js';
 import postRoutes from './routes/postRoutes.js';
@@ -65,12 +63,6 @@ app.use('/api', limiter);
 // 4. Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// 5. Data sanitization against XSS (Must be after parsers)
-app.use(xss());
-
-// 6. Prevent HTTP Parameter Pollution (Must be after parsers)
-app.use(hpp());
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
