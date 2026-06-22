@@ -37,26 +37,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── Middleware ──────────────────────────────────────────
-// Set security HTTP headers
-app.use(helmet());
-// Allow images/uploads to be loaded cross-origin
-app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // Limit each IP to 300 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api', limiter);
-
-// Data sanitization against XSS
-app.use(xss());
-
-// Prevent HTTP Parameter Pollution
-app.use(hpp());
-
+// 1. CORS (Must be early so OPTIONS requests are handled quickly)
 app.use(cors({
   origin(origin, callback) {
     // Allow requests with no origin (e.g. curl, Postman, mobile apps)
@@ -66,8 +48,29 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// 2. Security HTTP headers
+app.use(helmet());
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
+
+// 3. Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
+
+// 4. Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 5. Data sanitization against XSS (Must be after parsers)
+app.use(xss());
+
+// 6. Prevent HTTP Parameter Pollution (Must be after parsers)
+app.use(hpp());
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
