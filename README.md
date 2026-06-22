@@ -2,7 +2,7 @@
 
 A privacy-first social feed where you react with your **face**. Facial expression detection runs entirely **on-device** with face-api.js — no images ever leave the browser, only the detected emotion label.
 
-> Status: **Phase 2 — Backend wired up.** Frontend is connected to a Node + Express + Prisma + Postgres API with JWT auth, posts, likes, comments, follows, and emoji reactions.
+> Status: **Phase 3 — Mobile App & Security Hardened.** Frontend is connected to a Node + Express + Prisma + Postgres API with JWT auth, posts, likes, comments, follows, and emoji reactions. The backend is secured with Helmet, Rate Limiting, and XSS protection. The React Native mobile app features premium vector icons, an interactive grid UI, an expression camera, and uses `expo-secure-store` for safe token management.
 
 ---
 
@@ -23,9 +23,14 @@ Sociogram/
 │   ├── prisma/                  # schema.prisma + seed.cjs
 │   └── src/
 │       ├── controllers/
-│       ├── middleware/
+│       ├── middleware/          # auth, upload, security middlewares (helmet, rate-limit)
 │       ├── routes/
 │       └── utils/
+├── sociogram-mobile/            # React Native (Expo) mobile app
+│   ├── screens/                 # PostDetail, EditProfile, Notifications, Explore, Home, etc.
+│   ├── components/
+│   ├── services/                # Secure API client (expo-secure-store)
+│   └── theme.js
 ├── docker-compose.yml           # Local Postgres in one command
 ├── render.yaml                  # Render.com Blueprint for backend + DB
 ├── vercel.json                  # Vercel SPA config for frontend
