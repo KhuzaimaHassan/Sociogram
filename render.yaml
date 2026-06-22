@@ -35,5 +35,3 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         value: "https://sociogram-rho.vercel.app,http://localhost:5173"
-      - key: PORT
-        value: "3001"

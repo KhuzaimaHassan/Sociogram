@@ -86,8 +86,8 @@ const httpServer = createServer(app);
 initSocket(httpServer, allowedOrigins);
 
 // ── Start ──────────────────────────────────────────────
-httpServer.listen(PORT, () => {
-  console.log(`\n  🚀 Sociogram API running at http://localhost:${PORT}`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n  🚀 Sociogram API running at http://0.0.0.0:${PORT}`);
   console.log(`  📋 Health check: http://localhost:${PORT}/api/health`);
   console.log(`  ⚡ Socket.io enabled`);
   console.log(`  🌐 CORS origins: ${allowedOrigins.join(', ')}\n`);
