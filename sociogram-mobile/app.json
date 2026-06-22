@@ -40,7 +40,16 @@
           "microphonePermission": "Allow Sociogram to access your microphone.",
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.0"
+          }
+        }
+      ],
+      "expo-secure-store"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

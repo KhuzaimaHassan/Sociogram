@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, mediaUrl } from '../services/api';
 import { colors, font, spacing, radius } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width: SW } = Dimensions.get('window');
 const CELL = (SW - 2) / 3;
@@ -46,7 +47,7 @@ export default function ExploreScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Search bar */}
       <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons name="search" size={20} color={colors.muted} style={{ paddingHorizontal: 8 }} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search creators…"
@@ -57,8 +58,8 @@ export default function ExploreScreen({ navigation }) {
           returnKeyType="search"
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')}>
-            <Text style={{ color: colors.muted, fontSize: 16, paddingRight: 8 }}>✕</Text>
+          <TouchableOpacity onPress={() => setQuery('')} style={{ paddingHorizontal: 8 }}>
+            <Ionicons name="close-circle" size={20} color={colors.muted} />
           </TouchableOpacity>
         )}
       </View>
@@ -84,7 +85,7 @@ export default function ExploreScreen({ navigation }) {
           ListEmptyComponent={
             !searching && (
               <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>🔍</Text>
+                <Ionicons name="search-outline" size={64} color={colors.muted} style={{ marginBottom: spacing.md }} />
                 <Text style={styles.emptyText}>No creators found</Text>
               </View>
             )
@@ -99,13 +100,25 @@ export default function ExploreScreen({ navigation }) {
           ItemSeparatorComponent={() => <View style={{ height: 1 }} />}
           renderItem={({ item: p }) => {
             const url = mediaUrl(p.mediaUrl);
+            const isVideo = p.mediaType === 'video';
             return (
-              <TouchableOpacity style={[styles.cell, { width: CELL, height: CELL }]} activeOpacity={0.85}>
+              <TouchableOpacity 
+                style={[styles.cell, { width: CELL, height: CELL }]} 
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('PostDetail', { postId: p.id })}
+              >
                 {url ? (
-                  <Image source={{ uri: url }} style={{ width: CELL, height: CELL }} resizeMode="cover" />
+                  <>
+                    <Image source={{ uri: url }} style={{ width: CELL, height: CELL }} resizeMode="cover" />
+                    {isVideo && (
+                      <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                        <Ionicons name="play" size={20} color="rgba(255,255,255,0.9)" />
+                      </View>
+                    )}
+                  </>
                 ) : (
                   <View style={[styles.cell, { width: CELL, height: CELL, backgroundColor: colors.elevated, alignItems: 'center', justifyContent: 'center' }]}>
-                    <Text style={{ fontSize: 30 }}>✨</Text>
+                    <Ionicons name="image-outline" size={32} color={colors.muted} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -114,7 +127,7 @@ export default function ExploreScreen({ navigation }) {
           ListEmptyComponent={
             !loading && (
               <View style={styles.empty}>
-                <Text style={styles.emptyIcon}>🌌</Text>
+                <Ionicons name="grid-outline" size={64} color={colors.muted} style={{ marginBottom: spacing.md }} />
                 <Text style={styles.emptyText}>Nothing here yet</Text>
               </View>
             )

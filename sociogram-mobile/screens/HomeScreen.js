@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { colors, font, spacing } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
 import PostCard from '../components/PostCard';
 import ExpressionCamera from '../components/ExpressionCamera';
 
@@ -63,11 +64,11 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.header}>
         <Text style={styles.logo}>Sociogram</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerBtn}>
-            <Text style={{ fontSize: 22 }}>🔔</Text>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
+            <Ionicons name="notifications-outline" size={26} color={colors.white} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerBtn}>
-            <Text style={{ fontSize: 22 }}>✉️</Text>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Messages')}>
+            <Ionicons name="chatbubbles-outline" size={26} color={colors.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -93,7 +94,7 @@ export default function HomeScreen({ navigation }) {
           ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🌌</Text>
+              <Ionicons name="planet-outline" size={64} color={colors.muted} style={{ marginBottom: spacing.md }} />
               <Text style={styles.emptyTitle}>Nothing in your feed</Text>
               <Text style={styles.emptyDesc}>Follow people to see their posts here</Text>
             </View>
@@ -112,7 +113,7 @@ export default function HomeScreen({ navigation }) {
         onPress={() => setCamVisible(true)}
         activeOpacity={0.85}
       >
-        <Text style={{ fontSize: 24 }}>🎭</Text>
+        <Ionicons name="happy-outline" size={28} color={colors.white} />
       </TouchableOpacity>
 
       {/* Expression Camera Modal */}

@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors, font, spacing, radius } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
 
 function timeAgo(ts) {
   const d = (Date.now() - new Date(ts).getTime()) / 1000;
@@ -74,7 +75,7 @@ export default function MessagesScreen({ navigation }) {
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={{ fontSize: 40, marginBottom: 12 }}>✉️</Text>
+              <Ionicons name="chatbubbles-outline" size={64} color={colors.muted} style={{ marginBottom: spacing.md }} />
               <Text style={styles.emptyText}>No messages yet</Text>
               <Text style={styles.emptyDesc}>Search for people to start a conversation</Text>
             </View>

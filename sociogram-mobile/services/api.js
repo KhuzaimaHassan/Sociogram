@@ -6,18 +6,18 @@ const BASE_URL = 'https://sociogram-api-rt4f.onrender.com';
 const ACCESS_KEY  = 'sg_access_token';
 const REFRESH_KEY = 'sg_refresh_token';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 export const tokenStore = {
-  async getAccess()  { return AsyncStorage.getItem(ACCESS_KEY);  },
-  async getRefresh() { return AsyncStorage.getItem(REFRESH_KEY); },
+  async getAccess()  { return SecureStore.getItemAsync(ACCESS_KEY);  },
+  async getRefresh() { return SecureStore.getItemAsync(REFRESH_KEY); },
   async set({ accessToken, refreshToken }) {
-    if (accessToken)  await AsyncStorage.setItem(ACCESS_KEY,  accessToken);
-    if (refreshToken) await AsyncStorage.setItem(REFRESH_KEY, refreshToken);
+    if (accessToken)  await SecureStore.setItemAsync(ACCESS_KEY,  accessToken);
+    if (refreshToken) await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
   },
   async clear() {
-    await AsyncStorage.removeItem(ACCESS_KEY);
-    await AsyncStorage.removeItem(REFRESH_KEY);
+    await SecureStore.deleteItemAsync(ACCESS_KEY);
+    await SecureStore.deleteItemAsync(REFRESH_KEY);
   },
 };
 

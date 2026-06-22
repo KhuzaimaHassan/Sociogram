@@ -4,6 +4,10 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import xss from 'xss-clean';
+import hpp from 'hpp';
 
 import authRoutes from './routes/authRoutes.js';
 import postRoutes from './routes/postRoutes.js';
@@ -27,6 +31,26 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .filter(Boolean);
 
 // ── Middleware ──────────────────────────────────────────
+// Set security HTTP headers
+app.use(helmet());
+// Allow images/uploads to be loaded cross-origin
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiter);
+
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent HTTP Parameter Pollution
+app.use(hpp());
+
 app.use(cors({
   origin(origin, callback) {
     // Allow requests with no origin (e.g. curl, Postman, mobile apps)

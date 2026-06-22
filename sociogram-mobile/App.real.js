@@ -10,16 +10,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { colors, font } from './theme';
-import { Ionicons } from '@expo/vector-icons';
 
-import HomeScreen        from './screens/HomeScreen';
-import ExploreScreen     from './screens/ExploreScreen';
-import MessagesScreen    from './screens/MessagesScreen';
-import ProfileScreen     from './screens/ProfileScreen';
-import AuthScreen        from './screens/AuthScreen';
-import NotificationsScreen from './screens/NotificationsScreen';
-import EditProfileScreen from './screens/EditProfileScreen';
-import PostDetailScreen  from './screens/PostDetailScreen';
+import HomeScreen     from './screens/HomeScreen';
+import ExploreScreen  from './screens/ExploreScreen';
+import MessagesScreen from './screens/MessagesScreen';
+import ProfileScreen  from './screens/ProfileScreen';
+import AuthScreen     from './screens/AuthScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -37,10 +33,10 @@ const NAV_THEME = {
 };
 
 const TABS = [
-  { name: 'Home',     component: HomeScreen,     icon: 'home', iconOutline: 'home-outline' },
-  { name: 'Explore',  component: ExploreScreen,  icon: 'search', iconOutline: 'search-outline' },
-  { name: 'Messages', component: MessagesScreen, icon: 'chatbubbles', iconOutline: 'chatbubbles-outline' },
-  { name: 'Profile',  component: ProfileScreen,  icon: 'person', iconOutline: 'person-outline' },
+  { name: 'Home',     component: HomeScreen,     icon: '🏠' },
+  { name: 'Explore',  component: ExploreScreen,  icon: '🔍' },
+  { name: 'Messages', component: MessagesScreen, icon: '✉️' },
+  { name: 'Profile',  component: ProfileScreen,  icon: '👤' },
 ];
 
 function AppTabs() {
@@ -69,11 +65,9 @@ function AppTabs() {
         tabBarIcon: ({ focused }) => {
           const tab = TABS.find(t => t.name === route.name);
           return (
-            <Ionicons 
-              name={focused ? tab?.icon : tab?.iconOutline} 
-              size={24} 
-              color={focused ? colors.brand : colors.muted} 
-            />
+            <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>
+              {tab?.icon}
+            </Text>
           );
         },
       })}
@@ -101,11 +95,8 @@ function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
       {user ? (
         <>
-          <Stack.Screen name="Main"         component={AppTabs} />
-          <Stack.Screen name="Profile"      component={ProfileScreen} />
-          <Stack.Screen name="Notifications" component={NotificationsScreen} />
-          <Stack.Screen name="EditProfile"  component={EditProfileScreen} />
-          <Stack.Screen name="PostDetail"   component={PostDetailScreen} />
+          <Stack.Screen name="Main"    component={AppTabs} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
         </>
       ) : (
         <Stack.Screen name="Auth" component={AuthScreen} />

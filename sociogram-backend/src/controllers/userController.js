@@ -47,7 +47,17 @@ export async function getProfile(req, res, next) {
 // PUT /api/users/me
 export async function updateProfile(req, res, next) {
   try {
-    const { displayName, bio, avatar } = req.body;
+    const { displayName, bio } = req.body;
+    let { avatar } = req.body;
+    
+    // If a file was uploaded, use its path/URL
+    if (req.file) {
+      if (req.file.path && req.file.path.startsWith('http')) {
+        avatar = req.file.path; // Cloudinary
+      } else {
+        avatar = `/uploads/${req.file.filename}`; // Local
+      }
+    }
 
     const user = await prisma.user.update({
       where: { id: req.user.id },

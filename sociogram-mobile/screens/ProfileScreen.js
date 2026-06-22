@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, mediaUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors, font, spacing, radius } from '../theme';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width: SW } = Dimensions.get('window');
 const CELL = (SW - 2) / 3;
@@ -53,7 +54,7 @@ export default function ProfileScreen({ route, navigation }) {
   if (loading) return <View style={styles.centered}><ActivityIndicator color={colors.brand} size="large" /></View>;
   if (!profile) return (
     <View style={styles.centered}>
-      <Text style={styles.notFoundEmoji}>🤷</Text>
+      <Ionicons name="person-outline" size={64} color={colors.muted} style={{ marginBottom: spacing.sm }} />
       <Text style={styles.notFoundText}>User not found</Text>
     </View>
   );
@@ -67,12 +68,12 @@ export default function ProfileScreen({ route, navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={{ color: colors.white, fontSize: 20 }}>‹</Text>
+            <Ionicons name="arrow-back" size={24} color={colors.white} />
           </TouchableOpacity>
           <Text style={styles.headerUsername}>{profile.username}</Text>
           {isOwn && (
             <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-              <Text style={{ fontSize: 20 }}>⚙️</Text>
+              <Ionicons name="settings-outline" size={24} color={colors.white} />
             </TouchableOpacity>
           )}
         </View>
@@ -101,7 +102,7 @@ export default function ProfileScreen({ route, navigation }) {
         <View style={styles.btnRow}>
           {isOwn ? (
             <>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => {}}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('EditProfile')}>
                 <Text style={styles.actionBtnText}>Edit Profile</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionBtn, styles.dangerBtn]} onPress={() => { logout(); }}>
@@ -130,20 +131,33 @@ export default function ProfileScreen({ route, navigation }) {
         <View style={styles.gridWrap}>
           {posts.length === 0 ? (
             <View style={styles.emptyPosts}>
-              <Text style={{ fontSize: 40, marginBottom: 12 }}>📸</Text>
+              <Ionicons name="camera-outline" size={48} color={colors.muted} style={{ marginBottom: 12 }} />
               <Text style={styles.emptyText}>No posts yet</Text>
             </View>
           ) : (
             <View style={styles.grid}>
               {posts.map((p) => {
                 const url = mediaUrl(p.mediaUrl);
+                const isVideo = p.mediaType === 'video';
                 return (
-                  <TouchableOpacity key={p.id} style={{ width: CELL, height: CELL }}>
+                  <TouchableOpacity 
+                    key={p.id} 
+                    style={{ width: CELL, height: CELL }}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate('PostDetail', { postId: p.id })}
+                  >
                     {url ? (
-                      <Image source={{ uri: url }} style={{ width: CELL, height: CELL }} resizeMode="cover" />
+                      <>
+                        <Image source={{ uri: url }} style={{ width: CELL, height: CELL }} resizeMode="cover" />
+                        {isVideo && (
+                          <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                            <Ionicons name="play" size={20} color="rgba(255,255,255,0.9)" />
+                          </View>
+                        )}
+                      </>
                     ) : (
                       <View style={{ width: CELL, height: CELL, backgroundColor: colors.elevated, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 28 }}>✨</Text>
+                        <Ionicons name="image-outline" size={32} color={colors.muted} />
                       </View>
                     )}
                   </TouchableOpacity>
