@@ -1,5 +1,6 @@
 import prisma from '../utils/prisma.js';
 import { notifyUser, broadcastToPost } from '../socket.js';
+import { deleteMediaFile } from '../middleware/upload.js';
 
 // POST /api/posts
 export async function createPost(req, res, next) {
@@ -171,11 +172,16 @@ export async function deletePost(req, res, next) {
   try {
     const post = await prisma.post.findUnique({
       where: { id: req.params.id },
-      select: { userId: true },
+      select: { userId: true, mediaUrl: true, mediaType: true },
     });
 
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.userId !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+
+    // Delete media file from Cloudinary/Local
+    if (post.mediaUrl) {
+      await deleteMediaFile(post.mediaUrl, post.mediaType);
+    }
 
     await prisma.post.delete({ where: { id: req.params.id } });
     res.json({ message: 'Post deleted' });

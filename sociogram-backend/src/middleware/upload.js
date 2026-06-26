@@ -108,3 +108,51 @@ export function uploadMedia(req, res, next) {
 
 // Keep the old named export for any legacy imports
 export { uploadMedia as upload };
+
+import fs from 'fs';
+
+/**
+ * Deletes a media file from Cloudinary or local disk based on its URL.
+ * @param {string} mediaUrl The URL of the media (e.g. /uploads/file.jpg or https://res.cloudinary.com/.../folder/id.jpg)
+ * @param {string} mediaType 'image' or 'video'
+ */
+export async function deleteMediaFile(mediaUrl, mediaType = 'image') {
+  if (!mediaUrl) return;
+
+  try {
+    if (mediaUrl.startsWith('http') && mediaUrl.includes('cloudinary.com')) {
+      // It's a Cloudinary URL
+      if (!process.env.CLOUDINARY_URL) return; // Cannot delete without credentials
+
+      // Extract public ID. Example URL:
+      // https://res.cloudinary.com/cloud_name/image/upload/v1234567890/sociogram/1234-abcd.jpg
+      // public_id would be 'sociogram/1234-abcd'
+      
+      const parts = mediaUrl.split('/');
+      const filenameWithExt = parts.pop();
+      const folderName = parts.pop(); // typically 'sociogram'
+      
+      // Remove extension from filename
+      const filename = filenameWithExt.substring(0, filenameWithExt.lastIndexOf('.')) || filenameWithExt;
+      const publicId = `${folderName}/${filename}`;
+
+      const { v2: cloudinary } = await import('cloudinary');
+      cloudinary.config({ secure: true }); // Reads from CLOUDINARY_URL
+      
+      await cloudinary.uploader.destroy(publicId, { resource_type: mediaType });
+      console.log(`[Storage] Deleted from Cloudinary: ${publicId}`);
+
+    } else if (mediaUrl.startsWith('/uploads/')) {
+      // It's a local file
+      const filename = mediaUrl.replace('/uploads/', '');
+      const filepath = path.join(uploadDir, filename);
+      
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+        console.log(`[Storage] Deleted local file: ${filepath}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[Storage] Failed to delete media ${mediaUrl}:`, err.message);
+  }
+}

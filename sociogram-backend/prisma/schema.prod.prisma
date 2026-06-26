@@ -33,6 +33,8 @@ model User {
   sentMessages       Message[]
   stories            Story[]
   storyViews         StoryView[]
+  notificationsReceived Notification[] @relation("NotificationReceiver")
+  notificationsSent     Notification[] @relation("NotificationSender")
 
   @@map("users")
 }
@@ -52,6 +54,7 @@ model Post {
   comments   Comment[]
   likes      Like[]
   reactions  Reaction[]
+  notifications Notification[]
 
   @@map("posts")
 }
@@ -167,4 +170,23 @@ model StoryView {
 
   @@unique([storyId, viewerId])
   @@map("story_views")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // e.g. 'like', 'comment', 'follow', 'system'
+  message   String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+
+  senderId  String?
+  sender    User?    @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }

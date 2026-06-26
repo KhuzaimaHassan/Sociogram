@@ -210,3 +210,35 @@ export async function getUnreadCount(req, res, next) {
     next(err);
   }
 }
+
+// ── PUT /api/conversations/:id/read ───────────────────
+export async function markConversationAsRead(req, res, next) {
+  try {
+    const myId = req.user.id;
+    const { id: convId } = req.params;
+
+    // Verify conversation existence and membership
+    const conv = await prisma.conversation.findUnique({
+      where: { id: convId },
+    });
+
+    if (!conv) return res.status(404).json({ error: 'Conversation not found' });
+    if (conv.participantAId !== myId && conv.participantBId !== myId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Mark messages sent to me in this conversation as read
+    await prisma.message.updateMany({
+      where: { conversationId: convId, senderId: { not: myId }, readAt: null },
+      data: { readAt: new Date() },
+    });
+
+    // Fire socket event so other devices sync the read state
+    const { notifyUser } = await import('../socket.js');
+    notifyUser(myId, 'dm:read_update', { conversationId: convId });
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}

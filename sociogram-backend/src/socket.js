@@ -85,10 +85,33 @@ export function getIO() {
 
 /**
  * Send a notification to a specific user's personal room.
- * Safe to call even if io is not yet initialized (no-op).
+ * Also persists standard 'notification' events to the database.
  */
-export function notifyUser(userId, event, data) {
-  if (io && userId) {
+export async function notifyUser(userId, event, data) {
+  if (!userId) return;
+
+  if (event === 'notification') {
+    try {
+      const { default: prisma } = await import('./utils/prisma.js');
+      
+      const dbNotif = await prisma.notification.create({
+        data: {
+          type: data.type || 'system',
+          message: data.message,
+          userId: userId,
+          senderId: data.from?.id,
+          postId: data.postId,
+        }
+      });
+      // Use the actual database ID and timestamp
+      data.id = dbNotif.id;
+      data.timestamp = dbNotif.createdAt.toISOString();
+    } catch (e) {
+      console.error('[Socket] Failed to persist notification:', e.message);
+    }
+  }
+
+  if (io) {
     io.to(`user:${userId}`).emit(event, data);
   }
 }

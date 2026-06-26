@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import prisma from '../utils/prisma.js';
 import { generateTokenPair, verifyRefreshToken } from '../utils/jwt.js';
+import { deleteMediaFile } from '../middleware/upload.js';
 
 // POST /api/auth/register
 export async function register(req, res, next) {
@@ -165,10 +166,34 @@ export async function deleteAccount(req, res, next) {
       return res.status(400).json({ error: 'Password is required to delete account' });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        posts: { select: { mediaUrl: true, mediaType: true } },
+        stories: { select: { mediaUrl: true, mediaType: true } },
+      }
+    });
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       return res.status(401).json({ error: 'Password is incorrect' });
+    }
+
+    // Delete all media files associated with the user
+    const mediaToDelete = [];
+    if (user.avatar && user.avatar.startsWith('http') && !user.avatar.includes('api.dicebear.com')) {
+      mediaToDelete.push({ url: user.avatar, type: 'image' });
+    }
+    user.posts.forEach(p => {
+      if (p.mediaUrl) mediaToDelete.push({ url: p.mediaUrl, type: p.mediaType });
+    });
+    user.stories.forEach(s => {
+      if (s.mediaUrl) mediaToDelete.push({ url: s.mediaUrl, type: s.mediaType });
+    });
+
+    for (const media of mediaToDelete) {
+      await deleteMediaFile(media.url, media.type);
     }
 
     // Cascade delete via Prisma (all posts, follows, messages, stories etc.)
