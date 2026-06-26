@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "build": "npx prisma generate --schema=prisma/schema.prod.prisma && npx prisma db push --schema=prisma/schema.prod.prisma && node prisma/seed-prod.cjs",
+    "build": "npx prisma generate --schema=prisma/schema.prod.prisma && npx prisma db push --schema=prisma/schema.prod.prisma --accept-data-loss && node prisma/seed-prod.cjs",
     "postinstall": "npx prisma generate",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "node prisma/seed.cjs",

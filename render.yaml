@@ -13,7 +13,7 @@ services:
     runtime: node
     rootDir: sociogram-backend
     plan: free
-    buildCommand: npm install && npm run build && npx prisma db push --schema=prisma/schema.prod.prisma --accept-data-loss
+    buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
