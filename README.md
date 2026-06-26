@@ -1,273 +1,162 @@
-# Sociogram
+<div align="center">
+  <img src="sociogram-frontend/public/icons.svg" alt="Sociogram Logo" width="120" />
+  <h1>Sociogram</h1>
+  <p><strong>Next-Generation, Privacy-First Social Feed with On-Device Facial Expression Reactions</strong></p>
 
-A privacy-first social feed where you react with your **face**. Facial expression detection runs entirely **on-device** with face-api.js — no images ever leave the browser, only the detected emotion label.
+  [![Status](https://img.shields.io/badge/Status-Production%20Ready-success.svg)](#)
+  [![License](https://img.shields.io/badge/License-MIT-blue.svg)](#)
+  [![Stack](https://img.shields.io/badge/Stack-React%20%7C%20Node.js%20%7C%20Prisma-indigo.svg)](#)
+  [![Security](https://img.shields.io/badge/Security-Hardened-red.svg)](#)
+</div>
 
-> Status: **Phase 3 — Mobile App & Security Hardened.** Frontend is connected to a Node + Express + Prisma + Postgres API with JWT auth, posts, likes, comments, follows, and emoji reactions. The backend is secured with Helmet, Rate Limiting, and XSS protection. The React Native mobile app features premium vector icons, an interactive grid UI, an expression camera, and uses `expo-secure-store` for safe token management.
+<br />
+
+## 📖 Overview
+
+**Sociogram** is a full-stack, cross-platform social media application that reimagines how users interact with content. Instead of manually clicking like buttons, users react with their **face**. Using advanced on-device Machine Learning (`face-api.js`), Sociogram analyzes the user's facial expressions via webcam or mobile camera to seamlessly post emoji reactions in real-time.
+
+**Privacy is the core pillar of Sociogram.** Facial expression detection runs *entirely* on the edge (within the user's browser or device). Video frames never leave the client device; only the computed emotion label (e.g., `happy`, `surprised`) is transmitted to the API.
 
 ---
 
-## 1. Repository layout
+## ✨ Key Features
+
+### 🛡️ Enterprise-Grade Security & Privacy
+*   **On-Device ML:** Machine learning inference executes 100% locally.
+*   **Account Privacy:** Users can toggle private accounts to restrict visibility of their posts and follower graphs.
+*   **Secure Auth Flow:** JWT-based authentication with `accessToken` & `refreshToken` rotation, alongside secure password resets.
+*   **Bot Protection:** Strict email verification pipeline via NodeMailer before granting user access.
+*   **Backend Hardening:** Protected via Helmet (HTTP headers), strict CORS enforcement, and IP-based Rate Limiting.
+
+### ⚡ Seamless User Experience
+*   **Cloudinary CDN Integration:** All images and heavy videos (Reels) are optimized, compressed, and delivered globally.
+*   **Real-time Infrastructure:** WebSockets (`socket.io`) power instantaneous notifications, read receipts, and live direct messages.
+*   **Optimistic UI:** Like, unlike, and save actions immediately reflect in the React DOM, providing zero-latency perceived performance.
+*   **Cursor-based Pagination:** Infinite scrolling implementation on the Feed and heavy Comment sections to ensure buttery-smooth 60fps scrolling.
+
+---
+
+## 🏗️ Architecture & Monorepo Structure
+
+Sociogram utilizes a modern Monorepo structure, cleanly separating concerns between the Web App, the Mobile App, and the RESTful API.
 
 ```text
 Sociogram/
-├── public/
-│   └── models/                  # face-api.js model weights (already downloaded)
-├── src/                         # React (Vite) frontend
-│   ├── components/
-│   ├── context/                 # AuthContext, AppContext, ExpressionContext
-│   ├── hooks/
-│   ├── pages/                   # Home, Explore, Reels, Profile, Settings, Login, Register, CreatePost
-│   ├── services/                # apiClient + auth/post/user services
-│   └── utils/
-├── sociogram-backend/           # Node + Express + Prisma backend
-│   ├── prisma/                  # schema.prisma + seed.cjs
-│   └── src/
-│       ├── controllers/
-│       ├── middleware/          # auth, upload, security middlewares (helmet, rate-limit)
-│       ├── routes/
-│       └── utils/
-├── sociogram-mobile/            # React Native (Expo) mobile app
-│   ├── screens/                 # PostDetail, EditProfile, Notifications, Explore, Home, etc.
-│   ├── components/
-│   ├── services/                # Secure API client (expo-secure-store)
-│   └── theme.js
-├── docker-compose.yml           # Local Postgres in one command
-├── render.yaml                  # Render.com Blueprint for backend + DB
-├── vercel.json                  # Vercel SPA config for frontend
-└── start-pg.bat                 # Windows helper to start local PostgreSQL
+├── sociogram-frontend/          # Web Platform (React, Vite, TailwindCSS)
+│   ├── public/models/           # Pre-compiled face-api.js weights
+│   └── src/                     # React application source code
+├── sociogram-backend/           # Core API (Node.js, Express, Prisma, PostgreSQL)
+│   ├── prisma/                  # Database schema & seeding logic
+│   └── src/                     # API controllers, services, and middlewares
+└── sociogram-mobile/            # Mobile Platform (React Native, Expo)
+    ├── screens/                 # Mobile views
+    └── components/              # Reusable React Native components
 ```
 
----
-
-## 2. Prerequisites
-
-- **Node.js 18+** (20+ recommended)
-- **PostgreSQL** — pick **one** of:
-  - Local install (Windows: included PostgreSQL 18 + the bundled `start-pg.bat`)
-  - **Docker** (`docker compose up -d` — easiest cross-platform option)
-  - Managed cloud (Neon, Railway, Supabase, etc.)
+### 💻 Tech Stack
+*   **Frontend (Web):** React 19, Vite, TailwindCSS, Axios
+*   **Frontend (Mobile):** React Native, Expo, React Navigation, `expo-secure-store`
+*   **Backend:** Node.js, Express, Socket.io
+*   **Database & ORM:** PostgreSQL (Neon), Prisma ORM
+*   **Infrastructure:** Render (API), Vercel (Web), Cloudinary (Media CDN)
 
 ---
 
-## 3. Local development (first run)
+## 🚀 Quick Start (Local Development)
 
-### 3.1. Install dependencies
+### 1. Prerequisites
+*   **Node.js** (v18 or higher recommended)
+*   **PostgreSQL** (Local instance or Cloud provider like Neon/Supabase)
+*   **Cloudinary Account** (For media storage)
 
+### 2. Environment Configuration
+Clone the repository and set up your environment variables.
+
+#### Backend
+Navigate to the backend and configure `.env`:
 ```bash
-# In the repo root
-npm install
-
-# In the backend
 cd sociogram-backend
-npm install
-cd ..
+cp .env.example .env
 ```
+Ensure you populate `DATABASE_URL`, `JWT_SECRET`, `CLOUDINARY_URL`, and your email SMTP settings inside `.env`.
 
-### 3.2. Start PostgreSQL
-
-Pick **one** of the options below.
-
-#### Option A — Docker (recommended)
-
+#### Frontend
+Navigate to the frontend and configure `.env`:
 ```bash
-docker compose up -d
-```
-
-This starts a clean Postgres 16 instance on `localhost:5432` with user/password/db all set to `sociogram`.
-
-Update `sociogram-backend/.env` accordingly:
-
-```env
-DATABASE_URL="postgresql://sociogram:sociogram@localhost:5432/sociogram?schema=public"
-```
-
-#### Option B — Local install (Windows)
-
-Right-click `start-pg.bat` → **Run as Administrator**. It starts the `postgresql-x64-18` service and creates the `sociogram` database. Default credentials in `sociogram-backend/.env` already match.
-
-#### Option C — Managed cloud (Neon / Railway / Supabase)
-
-Create a database and paste the connection string into `sociogram-backend/.env` as `DATABASE_URL`.
-
-### 3.3. Configure environment
-
-```bash
-# Backend env
-cp sociogram-backend/.env.example sociogram-backend/.env
-
-# Frontend env (optional for local dev — defaults to http://localhost:3001)
+cd ../sociogram-frontend
 cp .env.example .env
 ```
 
-For production-grade secrets, generate strong values:
+### 3. Install & Seed
+Install dependencies for both workspaces and prepare the database.
 
 ```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
-
-### 3.4. Migrate + seed the database
-
-```bash
-cd sociogram-backend
+# In sociogram-backend
+npm install
 npx prisma generate
-npm run db:push        # creates tables from prisma/schema.prisma
-npm run db:seed        # inserts demo users + posts + reactions
-cd ..
+npm run db:push    # Push schema to Postgres
+npm run db:seed    # Populate DB with mock data & users
+
+# In sociogram-frontend
+cd ../sociogram-frontend
+npm install
 ```
 
-Demo login: `demo@sociogram.app` / `password123`.
-
-### 3.5. Run the apps
-
-In **two terminals**:
+### 4. Ignite the Engines
+Run the services concurrently in separate terminal windows:
 
 ```bash
-# Terminal 1 — backend
+# Terminal 1: API Server
 cd sociogram-backend
 npm run dev
-# 🚀 Sociogram API running at http://localhost:3001
+# Server running on http://localhost:3001
 
-# Terminal 2 — frontend
+# Terminal 2: Web Client
+cd sociogram-frontend
 npm run dev
-# Local: http://localhost:5173
+# Client running on http://localhost:5173
 ```
 
-Open <http://localhost:5173>, log in with the demo account (pre-filled), and start scrolling. Allow camera access when prompted to enable expression reactions.
-
 ---
 
-## 4. How the application flows
+## 🌐 Production Deployment
 
-```text
-          ┌────────────────┐    JWT (Bearer)     ┌──────────────────┐
-          │  React (Vite)  │ ───────────────────▶│  Express + Prisma │
-          │   face-api.js  │ ◀───────────────────│   PostgreSQL DB   │
-          └────────────────┘     JSON / multipart └──────────────────┘
-                  ▲
-                  │  on-device only
-                  │  (camera frame ➜ emotion label)
-            ┌──────────┐
-            │  Camera  │
-            └──────────┘
+Sociogram is designed for easy, scalable deployment across modern PaaS providers.
+
+### 1. Web App (Vercel)
+1. Import the repository into **Vercel**.
+2. **Crucial Step:** Navigate to **Settings > General > Root Directory** and set it to `sociogram-frontend`.
+3. Add your environment variables (e.g., `VITE_API_URL`).
+4. Deploy. Vercel will automatically detect Vite and output to `dist`.
+
+### 2. Backend API (Render)
+1. Connect the repository to **Render** as a Web Service.
+2. Set the Root Directory to `sociogram-backend`.
+3. Build Command: `npm install && npm run build`
+4. Start Command: `npm start`
+5. Inject your production environment variables (`DATABASE_URL`, `FRONTEND_URL`, etc.) via the Render dashboard.
+
+### 3. Mobile App (Expo)
+To test or build the React Native application:
+```bash
+cd sociogram-mobile
+npm install
+npx expo start
 ```
-
-- **Authentication** — `/api/auth/login` returns `{ user, accessToken, refreshToken }`. The frontend stores tokens in `localStorage`, attaches `Authorization: Bearer <accessToken>` to every request, and silently refreshes on 401 `TOKEN_EXPIRED`.
-- **Feed** — `GET /api/posts/feed` returns posts from users you follow plus your own, with normalized `reactions`, `liked`, and `myReaction` fields.
-- **Passive reactions** — when a post is on screen for ≥ 5 s (`useDwell`), the frontend captures one camera frame, runs `face-api.js`, maps the emotion → emoji, and `POST /api/posts/:id/react` with `source: "expression"`. A 3-second toast offers Undo.
-- **Posting** — `POST /api/posts` accepts a multipart form with `media`, `caption`, `location`, `isReel`. Files land in `/uploads` on the backend and are served from `${VITE_API_URL}/uploads/<filename>`.
+Use the **Expo Go** app on your physical device to scan the QR code and launch the mobile application over your local network.
 
 ---
 
-## 5. API surface (what the frontend consumes)
+## 🔒 Security & ML Data Flow
 
-| Method | Path                                  | Auth | Purpose                          |
-| ------ | ------------------------------------- | ---- | -------------------------------- |
-| POST   | `/api/auth/register`                  | —    | Create account, returns tokens   |
-| POST   | `/api/auth/login`                     | —    | Email + password → tokens        |
-| POST   | `/api/auth/refresh`                   | —    | Exchange refresh → new pair      |
-| GET    | `/api/auth/me`                        | ✅   | Current user with counts         |
-| GET    | `/api/posts/feed?cursor=...`          | ✅   | Personalized feed                |
-| GET    | `/api/posts/explore?cursor=...`       | ✅   | Global feed                      |
-| POST   | `/api/posts`                          | ✅   | Create post (multipart)          |
-| GET    | `/api/posts/:id`                      | ✅   | Single post + comments           |
-| DELETE | `/api/posts/:id`                      | ✅   | Delete own post                  |
-| POST   | `/api/posts/:id/like`                 | ✅   | Like                             |
-| DELETE | `/api/posts/:id/like`                 | ✅   | Unlike                           |
-| POST   | `/api/posts/:id/react`                | ✅   | Add/replace emoji reaction       |
-| DELETE | `/api/posts/:id/react`                | ✅   | Clear emoji reaction             |
-| GET    | `/api/posts/:id/comments`             | ✅   | List comments                    |
-| POST   | `/api/posts/:id/comments`             | ✅   | Add comment                      |
-| DELETE | `/api/comments/:id`                   | ✅   | Delete own comment               |
-| GET    | `/api/users/:username`                | ☑️   | Profile + own posts (auth opt.)  |
-| PUT    | `/api/users/me`                       | ✅   | Edit display name / bio / avatar |
-| POST   | `/api/users/:id/follow`               | ✅   | Follow user                      |
-| DELETE | `/api/users/:id/follow`               | ✅   | Unfollow user                    |
-| GET    | `/api/users/search?q=...`             | ✅   | Username/display search          |
+1. **Permission Check:** The webcam is initialized *only* after explicit user opt-in (`ExpressionProvider`).
+2. **Frame Capture:** A hidden HTML canvas captures periodic video frames.
+3. **Inference:** Frames are processed locally via `tinyFaceDetector` and `faceExpressionNet`.
+4. **Data Purge:** The raw image frame is instantly destroyed from memory.
+5. **API Handshake:** Only the resulting expression literal (`"happy"`, `"surprised"`) is securely transmitted to `POST /api/posts/:id/react`.
 
 ---
 
-## 6. Production deployment
-
-The recommended split:
-
-| Tier      | Provider                | What ships                          |
-| --------- | ----------------------- | ----------------------------------- |
-| Frontend  | **Vercel**              | Static Vite build (`/` repo root)   |
-| Backend   | **Render** (or Railway) | `sociogram-backend/` Node service   |
-| Database  | **Render Postgres** or **Neon** | Managed PostgreSQL          |
-
-> HTTPS is **required** for camera access on mobile devices. Vercel and Render both serve HTTPS by default, so this works out of the box once deployed.
-
-### 6.1. Deploy the backend (Render Blueprint)
-
-1. Push this repo to GitHub.
-2. Visit <https://dashboard.render.com/blueprints> → **New Blueprint** → pick this repo.
-3. Render reads `render.yaml` and provisions:
-   - `sociogram-db` Postgres instance.
-   - `sociogram-api` web service (`sociogram-backend/` as root).
-4. Set the `FRONTEND_URL` env var to your future Vercel URL (you can edit it after step 6.2).
-5. After first deploy, open the service shell and run `npm run db:seed` if you want demo data.
-
-### 6.2. Deploy the frontend (Vercel)
-
-1. Visit <https://vercel.com/new> → import this repo.
-2. Framework auto-detects as Vite. Output dir is `dist` (already in `vercel.json`).
-3. Add env var **`VITE_API_URL`** = your Render API URL (e.g. `https://sociogram-api.onrender.com`).
-4. Deploy. Open the deploy URL on your phone, log in, and the camera will work over HTTPS.
-
-### 6.3. Update CORS
-
-After the Vercel URL is live, set `FRONTEND_URL` on Render to that URL and redeploy. The backend's CORS middleware reads this on boot.
-
----
-
-## 7. Available scripts
-
-### Frontend (repo root)
-
-| Command           | Purpose                                      |
-| ----------------- | -------------------------------------------- |
-| `npm run dev`     | Vite dev server with `/api` proxy            |
-| `npm run build`   | Production build to `dist/`                  |
-| `npm run preview` | Preview the production build locally         |
-| `npm run lint`    | Run ESLint                                   |
-
-### Backend (`sociogram-backend/`)
-
-| Command                   | Purpose                                    |
-| ------------------------- | ------------------------------------------ |
-| `npm run dev`             | Start API with auto-reload                 |
-| `npm start`               | Start API (production)                     |
-| `npm run db:push`         | Sync `schema.prisma` → DB (no migrations)  |
-| `npm run db:migrate`      | Create and apply a new migration           |
-| `npm run db:seed`         | Insert demo users, posts, reactions        |
-| `npm run db:studio`       | Open Prisma Studio (visual DB browser)     |
-
----
-
-## 8. Privacy guarantees
-
-- The camera stream is opened only **after** the user grants explicit consent (`ExpressionProvider`).
-- Frames are drawn to a hidden canvas, run through `tinyFaceDetector` + `faceExpressionNet`, and **discarded** immediately.
-- Only the resulting emoji string ever reaches the backend (`POST /api/posts/:id/react`).
-- Disabling expression reactions in **Settings** stops the camera tracks immediately.
-
----
-
-## 9. Troubleshooting
-
-- **`Can't reach database server` on `db:push`** — make sure Postgres is actually running and `DATABASE_URL` matches its credentials. With Docker: `docker compose ps` should show `db (healthy)`.
-- **`401 Token expired` loop** — clear `localStorage` (`sociogram_access_token`, `sociogram_refresh_token`) and log in again.
-- **Camera never turns on** — browser blocked the permission, or you're on plain `http://` from a non-localhost origin. Use HTTPS or `localhost`.
-- **Models failed to load** — check that `public/models/` contains the four `*-shard1` and manifest files. If missing, run `node download-models.cjs` from the repo root.
-
----
-
-## 10. Roadmap
-
-- [ ] Cloudinary / S3 for media storage
-- [ ] Real-time notifications via WebSockets
-- [ ] Stories implementation backed by API
-- [ ] Reels infinite-scroll with prefetch
-- [ ] Server-side aggregation for trending feed
-- [ ] Cypress / Playwright e2e tests
+<div align="center">
+  <i>Built with ❤️ for privacy and seamless UX.</i>
+</div>
