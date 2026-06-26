@@ -24,13 +24,19 @@ export function deletePost(id) {
   return api.delete(`/api/posts/${id}`);
 }
 
-export function createPost({ caption, location, isReel, mediaFile }) {
+export function createPost({ caption, location, isReel, mediaFile }, onUploadProgress) {
   const fd = new FormData();
   if (caption) fd.append('caption', caption);
   if (location) fd.append('location', location);
   if (isReel) fd.append('isReel', String(isReel));
   if (mediaFile) fd.append('media', mediaFile);
-  return api.postForm('/api/posts', fd);
+  
+  // Assuming api wrapper supports passing config as 3rd arg. 
+  // If it's pure axios, it does.
+  return api.post('/api/posts', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress
+  });
 }
 
 export function likePost(id) {

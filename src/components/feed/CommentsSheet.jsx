@@ -7,7 +7,9 @@ import { useAuth } from '../../context/AuthContext';
 export default function CommentsSheet({ isOpen, onClose, postId, onCountChange }) {
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState(null);
@@ -18,14 +20,29 @@ export default function CommentsSheet({ isOpen, onClose, postId, onCountChange }
     setLoading(true);
     setError(null);
     try {
-      const data = await postApi.getComments(postId, { limit: 50 });
+      const data = await postApi.getComments(postId, { limit: 20 });
       setComments(data.comments || []);
+      setNextCursor(data.nextCursor);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }, [postId]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await postApi.getComments(postId, { cursor: nextCursor, limit: 20 });
+      setComments(prev => [...prev, ...(data.comments || [])]);
+      setNextCursor(data.nextCursor);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -125,6 +142,17 @@ export default function CommentsSheet({ isOpen, onClose, postId, onCountChange }
               </div>
             </div>
           ))}
+          {nextCursor && (
+            <div className="text-center pt-2 pb-4">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
+              >
+                {loadingMore ? 'Loading...' : 'Load more comments'}
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (

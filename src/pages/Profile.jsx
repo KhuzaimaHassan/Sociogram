@@ -228,8 +228,33 @@ export default function Profile() {
   }
 
   if (loading) return (
-    <div className="feed-container py-20 text-center">
-      <div className="inline-block w-8 h-8 rounded-full border-2 border-brand-500/30 border-t-brand-500 animate-spin" />
+    <div className="feed-container pb-24 animate-pulse">
+      <div className="px-4 pt-5 pb-3">
+        <div className="flex items-center justify-between mb-5">
+          <div className="h-6 w-1/3 bg-dark-elevated rounded"></div>
+        </div>
+        <div className="flex items-center gap-6 mb-4">
+          <div className="w-20 h-20 rounded-full bg-dark-elevated shrink-0"></div>
+          <div className="flex-1 flex justify-around">
+            <div className="flex flex-col items-center"><div className="w-6 h-5 bg-dark-elevated rounded mb-1"></div><div className="w-10 h-3 bg-dark-elevated rounded"></div></div>
+            <div className="flex flex-col items-center"><div className="w-6 h-5 bg-dark-elevated rounded mb-1"></div><div className="w-12 h-3 bg-dark-elevated rounded"></div></div>
+            <div className="flex flex-col items-center"><div className="w-6 h-5 bg-dark-elevated rounded mb-1"></div><div className="w-14 h-3 bg-dark-elevated rounded"></div></div>
+          </div>
+        </div>
+        <div className="space-y-2 mb-4">
+          <div className="h-4 w-1/4 bg-dark-elevated rounded"></div>
+          <div className="h-3 w-full bg-dark-elevated rounded"></div>
+          <div className="h-3 w-3/4 bg-dark-elevated rounded"></div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-0.5">
+        <div className="aspect-square bg-dark-elevated"></div>
+        <div className="aspect-square bg-dark-elevated"></div>
+        <div className="aspect-square bg-dark-elevated"></div>
+        <div className="aspect-square bg-dark-elevated"></div>
+        <div className="aspect-square bg-dark-elevated"></div>
+        <div className="aspect-square bg-dark-elevated"></div>
+      </div>
     </div>
   );
 

@@ -84,41 +84,6 @@ export default function CreatePost() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
-  // XHR upload for real progress tracking
-  function uploadWithProgress(formData) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          setUploadPercent(Math.round((e.loaded / e.total) * 95));
-        }
-      });
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try { resolve(JSON.parse(xhr.responseText)); }
-          catch { resolve({}); }
-        } else {
-          try {
-            const err = JSON.parse(xhr.responseText);
-            reject(new Error(err.error || `Upload failed (${xhr.status})`));
-          } catch {
-            reject(new Error(`Upload failed (${xhr.status})`));
-          }
-        }
-      });
-
-      xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
-      xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
-
-      xhr.open('POST', `${API_BASE_URL}/api/posts`);
-      const token = tokenStore.getAccess();
-      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.send(formData);
-    });
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (submitting) return;
@@ -132,13 +97,14 @@ export default function CreatePost() {
     setUploadPercent(0);
 
     try {
-      const formData = new FormData();
-      if (file) formData.append('media', file);
-      if (caption.trim()) formData.append('caption', caption.trim());
-      if (location.trim()) formData.append('location', location.trim());
-      formData.append('isReel', String(isReel));
-
-      const post = await uploadWithProgress(formData);
+      const post = await postApi.createPost(
+        { caption: caption.trim(), location: location.trim(), isReel, mediaFile: file },
+        (e) => {
+          if (e.lengthComputable) {
+            setUploadPercent(Math.round((e.loaded / e.total) * 95));
+          }
+        }
+      );
       setUploadPercent(100);
 
       addPostToFeed({

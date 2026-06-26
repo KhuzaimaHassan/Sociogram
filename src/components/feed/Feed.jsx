@@ -3,6 +3,8 @@ import { useApp } from '../../context/AppContext';
 import StoriesBar from './StoriesBar';
 import PostCard from './PostCard';
 
+import PostSkeleton from '../shared/PostSkeleton';
+
 export default function Feed() {
   const { posts, feedLoading, feedError, feedHasMore, loadFeed, loadMoreFeed } = useApp();
   const sentinelRef = useRef(null);
@@ -44,9 +46,10 @@ export default function Feed() {
       </div>
 
       {feedLoading && feedPosts.length === 0 && (
-        <div className="py-16 text-center">
-          <div className="inline-block w-8 h-8 rounded-full border-2 border-brand-500/30 border-t-brand-500 animate-spin" />
-          <p className="text-xs text-surface-500 mt-3">Loading your feed…</p>
+        <div className="divide-y divide-dark-border/20">
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
         </div>
       )}
 
