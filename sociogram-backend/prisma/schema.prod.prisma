@@ -19,6 +19,12 @@ model User {
   displayName  String?
   bio          String?
   avatar       String?   @default("😎")
+  coverImage   String?
+  website      String?
+  location     String?
+  isVerified   Boolean   @default(false)
+  isPrivate    Boolean   @default(false)
+  refreshToken String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -35,6 +41,8 @@ model User {
   storyViews         StoryView[]
   notificationsReceived Notification[] @relation("NotificationReceiver")
   notificationsSent     Notification[] @relation("NotificationSender")
+  resetToken            ResetToken?    @relation("ResetTokenUser")
+  verificationToken     VerificationToken? @relation("VerificationTokenUser")
 
   @@map("users")
 }
@@ -189,4 +197,26 @@ model Notification {
   post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model ResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @unique
+  user      User     @relation("ResetTokenUser", fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("reset_tokens")
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @unique
+  user      User     @relation("VerificationTokenUser", fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("verification_tokens")
 }

@@ -123,6 +123,7 @@ export async function getExplore(req, res, next) {
     const take = Math.min(parseInt(limit), 50);
 
     const posts = await prisma.post.findMany({
+      where: { user: { isPrivate: false } },
       take,
       orderBy: { createdAt: 'desc' },
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -146,7 +147,7 @@ export async function getPost(req, res, next) {
     const post = await prisma.post.findUnique({
       where: { id: req.params.id },
       include: {
-        user: { select: { id: true, username: true, avatar: true, displayName: true } },
+        user: { select: { id: true, username: true, avatar: true, displayName: true, isPrivate: true } },
         _count: { select: { likes: true, comments: true } },
         reactions: { select: { emoji: true, userId: true, source: true } },
         comments: {
@@ -159,6 +160,13 @@ export async function getPost(req, res, next) {
 
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (post.user.isPrivate && post.user.id !== req.user.id) {
+      const isFollowing = await prisma.follow.findFirst({
+        where: { followerId: req.user.id, followingId: post.user.id },
+      });
+      if (!isFollowing) return res.status(403).json({ error: 'This account is private' });
     }
 
     res.json(post);

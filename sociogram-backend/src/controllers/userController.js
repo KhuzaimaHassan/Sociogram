@@ -7,7 +7,7 @@ export async function getProfile(req, res, next) {
     const user = await prisma.user.findUnique({
       where: { username: req.params.username },
       select: {
-        id: true, username: true, displayName: true, avatar: true, bio: true, createdAt: true,
+        id: true, username: true, displayName: true, avatar: true, bio: true, createdAt: true, isPrivate: true,
         _count: { select: { posts: true, followers: true, following: true } },
         posts: {
           take: 30,
@@ -36,6 +36,13 @@ export async function getProfile(req, res, next) {
         },
       });
       isFollowing = !!follow;
+    }
+
+    // Privacy check
+    if (user.isPrivate && req.user?.id !== user.id && !isFollowing) {
+      user.posts = [];
+      user._count.followers = 0;
+      user._count.following = 0;
     }
 
     res.json({ ...user, isFollowing });

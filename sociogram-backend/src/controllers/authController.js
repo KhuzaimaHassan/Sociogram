@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 import prisma from '../utils/prisma.js';
 import { generateTokenPair, verifyRefreshToken } from '../utils/jwt.js';
 import { deleteMediaFile } from '../middleware/upload.js';
+import { sendEmail } from '../utils/emailService.js';
+import crypto from 'crypto';
 
 // POST /api/auth/register
 export async function register(req, res, next) {
@@ -200,6 +202,145 @@ export async function deleteAccount(req, res, next) {
     await prisma.user.delete({ where: { id: req.user.id } });
 
     res.json({ ok: true, message: 'Account deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/auth/forgot-password
+export async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Return ok anyway to prevent email enumeration
+      return res.json({ ok: true, message: 'If an account exists, a reset link has been sent' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // UPSERT reset token
+    await prisma.resetToken.upsert({
+      where: { userId: user.id },
+      update: { token, expiresAt },
+      create: { token, expiresAt, userId: user.id },
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+    
+    await sendEmail({
+      to: user.email,
+      subject: 'Sociogram - Reset Your Password',
+      html: `
+        <h2>Password Reset Request</h2>
+        <p>You requested to reset your password. Click the link below to set a new password:</p>
+        <a href="${resetLink}" style="display:inline-block;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:5px;">Reset Password</a>
+        <p>If you didn't request this, you can safely ignore this email.</p>
+        <p>This link will expire in 1 hour.</p>
+      `
+    });
+
+    res.json({ ok: true, message: 'If an account exists, a reset link has been sent' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/auth/reset-password
+export async function resetPassword(req, res, next) {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    const resetRecord = await prisma.resetToken.findUnique({
+      where: { token },
+      include: { user: true }
+    });
+
+    if (!resetRecord || resetRecord.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: resetRecord.userId },
+      data: { password: hashed }
+    });
+
+    // Clean up token
+    await prisma.resetToken.delete({ where: { id: resetRecord.id } });
+
+    res.json({ ok: true, message: 'Password has been successfully reset' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/auth/verify-email
+export async function verifyEmail(req, res, next) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    const verifyRecord = await prisma.verificationToken.findUnique({
+      where: { token },
+    });
+
+    if (!verifyRecord || verifyRecord.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired verification token' });
+    }
+
+    await prisma.user.update({
+      where: { id: verifyRecord.userId },
+      data: { isVerified: true }
+    });
+
+    // Clean up
+    await prisma.verificationToken.delete({ where: { id: verifyRecord.id } });
+
+    res.json({ ok: true, message: 'Email verified successfully' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/auth/resend-verification
+export async function resendVerification(req, res, next) {
+  try {
+    // Can be called with authenticated user or just email
+    const email = req.user?.email || req.body.email;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.json({ ok: true, message: 'If an account exists, a verification link has been sent' });
+    if (user.isVerified) return res.status(400).json({ error: 'Email is already verified' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    await prisma.verificationToken.upsert({
+      where: { userId: user.id },
+      update: { token, expiresAt },
+      create: { token, expiresAt, userId: user.id },
+    });
+
+    const verifyLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Sociogram - Verify Your Email',
+      html: `
+        <h2>Welcome to Sociogram!</h2>
+        <p>Please verify your email address by clicking the link below:</p>
+        <a href="${verifyLink}" style="display:inline-block;padding:10px 20px;background:#10b981;color:white;text-decoration:none;border-radius:5px;">Verify Email</a>
+        <p>This link will expire in 24 hours.</p>
+      `
+    });
+
+    res.json({ ok: true, message: 'Verification email sent' });
   } catch (err) {
     next(err);
   }
