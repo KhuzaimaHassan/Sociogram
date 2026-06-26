@@ -7,28 +7,20 @@
 #
 # Set FRONTEND_URL to your deployed frontend (Vercel) origin.
 
-databases:
-  - name: sociogram-db
-    plan: free
-    databaseName: sociogram
-    user: sociogram
-
 services:
   - type: web
     name: sociogram-api
     runtime: node
     rootDir: sociogram-backend
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build && npx prisma db push --schema=prisma/schema.prod.prisma --accept-data-loss
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: sociogram-db
-          property: connectionString
+        value: postgresql://neondb_owner:npg_IOyT2iEKwhk4@ep-muddy-cell-atx5j8l2.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
