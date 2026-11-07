@@ -1,0 +1,2 @@
+# Preserve upstream model bytes across Windows/Linux checkouts.
+sociogram-frontend/public/models/* -text
