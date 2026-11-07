@@ -4,32 +4,21 @@
  * Supports:
  * - Image / Video upload with local preview
  * - Text-only posts (no media required)
- * - Upload progress bar (XHR-based for real progress tracking)
+ * - Pending feedback while the upload and post request complete
  * - Cloudinary CDN on production / local on dev (transparent)
  * - Drag & drop file selection
  * - Location tag
  * - Mark as Reel (auto-detected for video)
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { API_BASE_URL, tokenStore } from '../services/apiClient';
+import { createPost } from '../services/postService';
 
 const ACCEPT_TYPES = 'image/jpeg,image/png,image/gif,image/webp,image/avif,video/mp4,video/webm,video/quicktime';
 const MAX_BYTES = 50 * 1024 * 1024;
-
-function UploadProgressBar({ percent }) {
-  return (
-    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-      <div
-        className="h-full bg-gradient-to-r from-brand-500 to-accent-pink rounded-full transition-all duration-300"
-        style={{ width: `${percent}%` }}
-      />
-    </div>
-  );
-}
 
 export default function CreatePost() {
   const navigate = useNavigate();
@@ -45,7 +34,6 @@ export default function CreatePost() {
   const [location, setLocation] = useState('');
   const [isReel, setIsReel] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadPercent, setUploadPercent] = useState(0);
   const [error, setError] = useState(null);
   const [dragging, setDragging] = useState(false);
 
@@ -80,7 +68,6 @@ export default function CreatePost() {
     setPreviewUrl(null);
     setPreviewType(null);
     setIsReel(false);
-    setUploadPercent(0);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -94,18 +81,11 @@ export default function CreatePost() {
 
     setSubmitting(true);
     setError(null);
-    setUploadPercent(0);
 
     try {
-      const post = await postApi.createPost(
-        { caption: caption.trim(), location: location.trim(), isReel, mediaFile: file },
-        (e) => {
-          if (e.lengthComputable) {
-            setUploadPercent(Math.round((e.loaded / e.total) * 95));
-          }
-        }
-      );
-      setUploadPercent(100);
+      const post = await createPost({
+        caption: caption.trim(), location: location.trim(), isReel, mediaFile: file,
+      });
 
       addPostToFeed({
         ...post,
@@ -118,10 +98,9 @@ export default function CreatePost() {
       });
 
       showToast('Post shared ✨', { duration: 2500 });
-      navigate('/', { replace: true });
+      navigate(isReel ? '/reels' : '/', { replace: true });
     } catch (err) {
       setError(err.message);
-      setUploadPercent(0);
     } finally {
       setSubmitting(false);
     }
@@ -157,12 +136,11 @@ export default function CreatePost() {
           </button>
         </div>
 
-        {/* Upload progress bar */}
+        {/* fetch does not expose upload progress; report the pending state honestly. */}
         {submitting && file && (
-          <div className="px-4 pb-2">
-            <UploadProgressBar percent={uploadPercent} />
+          <div className="px-4 pb-2" role="status" aria-live="polite">
             <p className="text-xs text-surface-400 mt-1 text-center">
-              {uploadPercent < 95 ? `Uploading… ${uploadPercent}%` : 'Processing…'}
+              Uploading and sharing…
             </p>
           </div>
         )}
@@ -309,7 +287,7 @@ export default function CreatePost() {
             id="create-submit"
           >
             {submitting
-              ? (file ? `Uploading ${uploadPercent}%…` : 'Sharing…')
+              ? (file ? 'Uploading and sharing…' : 'Sharing…')
               : '✨ Share Post'}
           </button>
         </form>

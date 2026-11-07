@@ -24,19 +24,15 @@ export function deletePost(id) {
   return api.delete(`/api/posts/${id}`);
 }
 
-export function createPost({ caption, location, isReel, mediaFile }, onUploadProgress) {
+export function createPost({ caption, location, isReel, mediaFile }) {
   const fd = new FormData();
   if (caption) fd.append('caption', caption);
   if (location) fd.append('location', location);
   if (isReel) fd.append('isReel', String(isReel));
   if (mediaFile) fd.append('media', mediaFile);
   
-  // Assuming api wrapper supports passing config as 3rd arg. 
-  // If it's pure axios, it does.
-  return api.post('/api/posts', fd, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress
-  });
+  // The browser supplies Content-Type with the boundary matching this FormData.
+  return api.postForm('/api/posts', fd);
 }
 
 export function likePost(id) {

@@ -3,10 +3,15 @@ import Modal from '../components/shared/Modal';
 import Feed from '../components/feed/Feed';
 
 export default function Home() {
-  const { showConsentModal, grantConsent, denyConsent } = useExpression();
+  const { showConsentModal, grantConsent, denyConsent, expressionError } = useExpression();
 
   return (
     <>
+      {expressionError && (
+        <p role="status" className="max-w-lg mx-auto px-4 py-3 text-sm text-amber-200 bg-amber-950/40">
+          {expressionError}
+        </p>
+      )}
       <Feed />
 
       {/* Privacy Consent Modal */}

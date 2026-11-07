@@ -48,5 +48,15 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# ── face-api.js models (downloaded separately) ────────────
+# ── Other model downloads ────────────────────────────────
 public/models/
+# Ship only the two pinned model families required by the web/WebView detector.
+!sociogram-frontend/public/models/
+sociogram-frontend/public/models/*
+!sociogram-frontend/public/models/tiny_face_detector_model-weights_manifest.json
+!sociogram-frontend/public/models/tiny_face_detector_model-shard1
+!sociogram-frontend/public/models/face_expression_model-weights_manifest.json
+!sociogram-frontend/public/models/face_expression_model-shard1
+!sociogram-frontend/public/models/LICENSE
+!sociogram-frontend/public/models/integrity.json
+!sociogram-frontend/public/models/README.md

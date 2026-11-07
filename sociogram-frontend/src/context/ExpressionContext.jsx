@@ -14,6 +14,7 @@ export function ExpressionProvider({ children }) {
   });
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [expressionError, setExpressionError] = useState(null);
   const [showConsentModal, setShowConsentModal] = useState(() => {
     const stored = localStorage.getItem('sociogram_expression_consent');
     return stored === null; // show if never answered
@@ -22,18 +23,10 @@ export function ExpressionProvider({ children }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-
-  // Load models on consent
-  useEffect(() => {
-    if (hasConsent && isEnabled) {
-      loadFaceApiModels().then(loaded => {
-        setIsModelLoaded(loaded);
-        if (loaded) startCamera();
-      });
-    }
-  }, [hasConsent, isEnabled]);
+  const cameraRequestRef = useRef(0);
 
   const startCamera = useCallback(async () => {
+    const request = ++cameraRequestRef.current;
     try {
       if (streamRef.current) return; // Already active
 
@@ -42,6 +35,12 @@ export function ExpressionProvider({ children }) {
         audio: false,
       });
 
+      // Permission can resolve after the feature is disabled or unmounted.
+      if (request !== cameraRequestRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -49,15 +48,22 @@ export function ExpressionProvider({ children }) {
         await videoRef.current.play();
       }
 
+      if (request !== cameraRequestRef.current) return;
       setIsCameraActive(true);
       console.log('[Sociogram] Camera started');
     } catch (error) {
+      if (request !== cameraRequestRef.current) return;
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
       console.warn('[Sociogram] Camera access denied:', error.message);
       setIsCameraActive(false);
+      setExpressionError('Camera unavailable. You can still use manual reactions.');
     }
   }, []);
 
   const stopCamera = useCallback(() => {
+    cameraRequestRef.current += 1;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -68,6 +74,25 @@ export function ExpressionProvider({ children }) {
     setIsCameraActive(false);
     console.log('[Sociogram] Camera stopped');
   }, []);
+
+  // One owner for model loading and camera lifetime, including slow requests.
+  useEffect(() => {
+    let cancelled = false;
+    if (!hasConsent || !isEnabled) return;
+    loadFaceApiModels().then(loaded => {
+      if (cancelled) return;
+      setIsModelLoaded(loaded);
+      if (loaded) {
+        startCamera();
+      } else {
+        setExpressionError('Expression models could not load. You can still use manual reactions.');
+      }
+    });
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+  }, [hasConsent, isEnabled, startCamera, stopCamera]);
 
   const detectExpression = useCallback(async () => {
     if (!isCameraActive || !videoRef.current || !isModelLoaded) return null;
@@ -88,6 +113,7 @@ export function ExpressionProvider({ children }) {
   }, [isCameraActive, isModelLoaded]);
 
   const grantConsent = useCallback(() => {
+    setExpressionError(null);
     localStorage.setItem('sociogram_expression_consent', 'true');
     localStorage.setItem('sociogram_expression_enabled', 'true');
     setHasConsent(true);
@@ -96,6 +122,7 @@ export function ExpressionProvider({ children }) {
   }, []);
 
   const denyConsent = useCallback(() => {
+    setExpressionError(null);
     localStorage.setItem('sociogram_expression_consent', 'false');
     localStorage.setItem('sociogram_expression_enabled', 'false');
     setHasConsent(false);
@@ -104,33 +131,21 @@ export function ExpressionProvider({ children }) {
   }, []);
 
   const toggleEnabled = useCallback(() => {
+    setExpressionError(null);
     const newState = !isEnabled;
     localStorage.setItem('sociogram_expression_enabled', String(newState));
     setIsEnabled(newState);
     if (!newState) {
       stopCamera();
-    } else if (hasConsent) {
-      loadFaceApiModels().then(loaded => {
-        setIsModelLoaded(loaded);
-        if (loaded) startCamera();
-      });
     }
-  }, [isEnabled, hasConsent, stopCamera, startCamera]);
-
-  // Clean up camera on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
-    };
-  }, []);
+  }, [isEnabled, stopCamera]);
 
   const value = {
     hasConsent,
     isEnabled,
     isModelLoaded,
     isCameraActive,
+    expressionError,
     showConsentModal,
     videoRef,
     canvasRef,
