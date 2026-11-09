@@ -12,6 +12,7 @@ import Home from './pages/Home';
 import Explore from './pages/Explore';
 import Reels from './pages/Reels';
 import Profile from './pages/Profile';
+import SavedPosts from './pages/SavedPosts';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -86,6 +87,7 @@ export default function App() {
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/messages/:convId" element={<Chat />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route path="/saved" element={<SavedPosts />} />
                   <Route path="/profile/:username" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>

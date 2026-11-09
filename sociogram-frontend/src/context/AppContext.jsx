@@ -1,7 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
 import * as postApi from '../services/postService';
 import { useAuth } from './AuthContext';
-import { posts as MOCK_POSTS } from '../data/mockPosts';
 
 const AppContext = createContext(null);
 
@@ -12,6 +11,7 @@ const initialState = {
   feedCursor: null,
   feedHasMore: true,
   toasts: [],
+  savingPostIds: {},
 };
 
 function appReducer(state, action) {
@@ -35,7 +35,10 @@ function appReducer(state, action) {
       return { ...state, feedLoading: false, feedError: action.error };
 
     case 'FEED_RESET':
-      return { ...state, posts: [], feedCursor: null, feedHasMore: true, feedError: null };
+      return { ...state, posts: [], feedCursor: null, feedHasMore: true, feedError: null, savingPostIds: {} };
+
+    case 'SAVE_PENDING':
+      return { ...state, savingPostIds: { ...state.savingPostIds, [action.postId]: action.pending } };
 
     case 'PATCH_POST': {
       const { postId, patch } = action;
@@ -77,18 +80,22 @@ function adjustReactions(reactions, prevEmoji, nextEmoji) {
 }
 
 export function AppProvider({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [state, dispatch] = useReducer(appReducer, initialState);
   const loadingRef = useRef(false);
+  const accountGeneration = useRef(0);
+  const saveLocks = useRef(new Set());
 
   // ── Feed ─────────────────────────────────────────────────
   const loadFeed = useCallback(async ({ append = false } = {}) => {
     if (loadingRef.current) return;
+    const generation = accountGeneration.current;
     loadingRef.current = true;
     dispatch({ type: 'FEED_LOAD_START' });
     try {
       const cursor = append ? state.feedCursor : undefined;
       const data = await postApi.getFeed({ cursor });
+      if (generation !== accountGeneration.current) return;
       dispatch({
         type: 'FEED_LOAD_SUCCESS',
         posts: data.posts || [],
@@ -96,22 +103,27 @@ export function AppProvider({ children }) {
         append,
       });
     } catch (err) {
+      if (generation !== accountGeneration.current) return;
       // Show error state — user can press Retry
       dispatch({ type: 'FEED_LOAD_FAILURE', error: err.message });
     } finally {
-      loadingRef.current = false;
+      if (generation === accountGeneration.current) loadingRef.current = false;
     }
   }, [state.feedCursor]);
 
   useEffect(() => {
+    accountGeneration.current += 1;
+    saveLocks.current.clear();
+    loadingRef.current = false;
     if (isAuthenticated) {
       dispatch({ type: 'FEED_RESET' });
       loadFeed({ append: false });
     } else {
       dispatch({ type: 'FEED_RESET' });
     }
+    return () => { accountGeneration.current += 1; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   // ── Likes ────────────────────────────────────────────────
   const toggleLike = useCallback(async (postId) => {
@@ -206,13 +218,6 @@ export function AppProvider({ children }) {
     dispatch({ type: 'PATCH_POST', postId, patch });
   }, []);
 
-  // ── Save (client-only flag, no backend yet) ──────────────
-  const toggleSave = useCallback((postId) => {
-    const post = state.posts.find((p) => p.id === postId);
-    if (!post) return;
-    dispatch({ type: 'PATCH_POST', postId, patch: { saved: !post.saved } });
-  }, [state.posts]);
-
   // ── Toasts ───────────────────────────────────────────────
   const showToast = useCallback((message, options = {}) => {
     const id = Date.now() + Math.random();
@@ -232,12 +237,38 @@ export function AppProvider({ children }) {
     dispatch({ type: 'REMOVE_TOAST', toastId });
   }, []);
 
+  const toggleSave = useCallback(async (postId) => {
+    const post = state.posts.find(p => p.id === postId);
+    const generation = accountGeneration.current;
+    const lock = `${generation}:${postId}`;
+    if (!post || saveLocks.current.has(lock)) return;
+    saveLocks.current.add(lock);
+    const wasSaved = !!post.saved;
+    dispatch({ type: 'SAVE_PENDING', postId, pending: true });
+    dispatch({ type: 'PATCH_POST', postId, patch: { saved: !wasSaved } });
+    try {
+      const result = await (wasSaved ? postApi.unsavePost(postId) : postApi.savePost(postId));
+      if (generation === accountGeneration.current) {
+        dispatch({ type: 'PATCH_POST', postId, patch: { saved: !!result.saved } });
+      }
+    } catch {
+      if (generation === accountGeneration.current) {
+        dispatch({ type: 'PATCH_POST', postId, patch: { saved: wasSaved } });
+        showToast('Could not update saved posts. Please try again.');
+      }
+    } finally {
+      saveLocks.current.delete(lock);
+      if (generation === accountGeneration.current) dispatch({ type: 'SAVE_PENDING', postId, pending: false });
+    }
+  }, [state.posts, showToast]);
+
   const value = {
     posts: state.posts,
     feedLoading: state.feedLoading,
     feedError: state.feedError,
     feedHasMore: state.feedHasMore,
     toasts: state.toasts,
+    savingPostIds: state.savingPostIds,
 
     loadFeed,
     loadMoreFeed: () => loadFeed({ append: true }),

@@ -13,7 +13,7 @@ import { mediaUrl } from '../../services/apiClient';
 import { getPostVisual } from '../../utils/postVisual';
 
 export default function PostCard({ post }) {
-  const { toggleLike, toggleSave, addReaction, removeReaction, showToast, updatePost } = useApp();
+  const { toggleLike, toggleSave, savingPostIds = {}, addReaction, removeReaction, showToast, updatePost } = useApp();
   const { isEnabled, detectExpression } = useFaceExpression();
   const [showPicker, setShowPicker] = useState(false);
   const [heartAnim, setHeartAnim] = useState(false);
@@ -196,7 +196,11 @@ export default function PostCard({ post }) {
 
           <button
             onClick={() => toggleSave(post.id)}
-            className={`action-btn ${post.saved ? 'text-white' : 'text-white/80'}`}
+            disabled={!!savingPostIds[post.id]}
+            aria-label={post.saved ? 'Remove from saved posts' : 'Save post'}
+            aria-pressed={!!post.saved}
+            aria-busy={!!savingPostIds[post.id]}
+            className={`action-btn disabled:opacity-50 ${post.saved ? 'text-white' : 'text-white/80'}`}
             id={`save-${post.id}`}
           >
             <svg

@@ -1,0 +1,43 @@
+name: Bookmark API checks
+
+on:
+  pull_request:
+    paths: ['sociogram-backend/**', '.github/workflows/bookmark-checks.yml']
+  push:
+    branches: [main]
+    paths: ['sociogram-backend/**', '.github/workflows/bookmark-checks.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  bookmarks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sociogram_qa
+          POSTGRES_PASSWORD: local-qa-only
+          POSTGRES_DB: sociogram_bookmarks_qa
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sociogram_qa -d sociogram_bookmarks_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: sociogram-backend
+    env:
+      DATABASE_URL: postgresql://sociogram_qa:local-qa-only@127.0.0.1:5432/sociogram_bookmarks_qa?schema=public
+      TEST_DATABASE_URL: postgresql://sociogram_qa:local-qa-only@127.0.0.1:5432/sociogram_bookmarks_qa?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sociogram-backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate --schema=prisma/schema.prod.prisma
+      - run: npx prisma db push --schema=prisma/schema.prod.prisma --skip-generate
+      - run: npm test
