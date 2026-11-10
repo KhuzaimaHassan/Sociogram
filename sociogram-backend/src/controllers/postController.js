@@ -77,6 +77,7 @@ export async function getFeed(req, res, next) {
           select: { id: true },
           take: 1,
         },
+        bookmarks: { where: { userId: req.user.id }, select: { id: true }, take: 1 },
       },
     });
 
@@ -102,6 +103,7 @@ export async function getFeed(req, res, next) {
         comments: post._count.comments,
         reactions: reactionCounts,
         liked: post.likes.length > 0,
+        saved: post.bookmarks.length > 0,
         myReaction,
       };
     });
@@ -130,12 +132,16 @@ export async function getExplore(req, res, next) {
       include: {
         user: { select: { id: true, username: true, avatar: true } },
         _count: { select: { likes: true, comments: true } },
+        bookmarks: { where: { userId: req.user.id }, select: { id: true }, take: 1 },
       },
     });
 
     const nextCursor = posts.length === take ? posts[posts.length - 1].id : null;
 
-    res.json({ posts, nextCursor });
+    res.json({
+      posts: posts.map(({ bookmarks, ...post }) => ({ ...post, saved: bookmarks.length > 0 })),
+      nextCursor,
+    });
   } catch (err) {
     next(err);
   }
@@ -150,6 +156,7 @@ export async function getPost(req, res, next) {
         user: { select: { id: true, username: true, avatar: true, displayName: true, isPrivate: true } },
         _count: { select: { likes: true, comments: true } },
         reactions: { select: { emoji: true, userId: true, source: true } },
+        bookmarks: { where: { userId: req.user.id }, select: { id: true }, take: 1 },
         comments: {
           take: 20,
           orderBy: { createdAt: 'desc' },
@@ -169,7 +176,8 @@ export async function getPost(req, res, next) {
       if (!isFollowing) return res.status(403).json({ error: 'This account is private' });
     }
 
-    res.json(post);
+    const { bookmarks, ...result } = post;
+    res.json({ ...result, saved: bookmarks.length > 0 });
   } catch (err) {
     next(err);
   }

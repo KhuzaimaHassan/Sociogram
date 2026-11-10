@@ -3,6 +3,7 @@ import { createPost, getFeed, getExplore, getPost, deletePost, likePost, unlikeP
 import { addReaction, removeReaction } from '../controllers/reactionController.js';
 import { addComment, getComments } from '../controllers/commentController.js';
 import { authenticate } from '../middleware/auth.js';
+import { getSavedPosts, savePost, unsavePost } from '../controllers/bookmarkController.js';
 import { uploadMedia } from '../middleware/upload.js';
 
 const router = Router();
@@ -13,12 +14,17 @@ router.use(authenticate);
 router.post('/', uploadMedia, createPost);
 router.get('/feed', getFeed);
 router.get('/explore', getExplore);
+router.get('/saved', getSavedPosts);
 router.get('/:id', getPost);
 router.delete('/:id', deletePost);
 
 // Likes
 router.post('/:id/like', likePost);
 router.delete('/:id/like', unlikePost);
+
+// Private, account-scoped bookmarks
+router.post('/:id/save', savePost);
+router.delete('/:id/save', unsavePost);
 
 // Reactions
 router.post('/:id/react', addReaction);

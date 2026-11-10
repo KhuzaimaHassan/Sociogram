@@ -10,14 +10,14 @@ export default function TopNav() {
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
 
-  if (location.pathname === '/reels') return null;
-
   function handleBellClick() {
     if (!showNotifications) markAllRead();
     setShowNotifications((v) => !v);
   }
 
   const closeNotifications = useCallback(() => setShowNotifications(false), []);
+
+  if (location.pathname === '/reels') return null;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 glass-elevated border-b border-dark-border/30">
@@ -88,8 +88,7 @@ export default function TopNav() {
             )}
           </div>
 
-          {/* 💬 Messages (placeholder — DMs coming soon) */}
-          <button className="action-btn" id="nav-messages" title="Messages (coming soon)">
+          <Link to="/messages" className="action-btn" id="topnav-messages" aria-label="Open messages" title="Messages">
             <svg
               width="22"
               height="22"
@@ -104,7 +103,7 @@ export default function TopNav() {
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
               <polyline points="22,6 12,13 2,6" />
             </svg>
-          </button>
+          </Link>
         </div>
       </div>
     </header>

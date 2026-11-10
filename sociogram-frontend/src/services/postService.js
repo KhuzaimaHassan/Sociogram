@@ -42,6 +42,20 @@ export function unlikePost(id) {
   return api.delete(`/api/posts/${id}/like`);
 }
 
+export function getSavedPosts({ cursor, limit = 20 } = {}) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) query.set('cursor', cursor);
+  return api.get(`/api/posts/saved?${query}`);
+}
+
+export function savePost(id) {
+  return api.post(`/api/posts/${id}/save`);
+}
+
+export function unsavePost(id) {
+  return api.delete(`/api/posts/${id}/save`);
+}
+
 export function reactToPost(id, { emoji, source = 'manual' }) {
   return api.post(`/api/posts/${id}/react`, { emoji, source });
 }

@@ -363,6 +363,7 @@ export default function Profile() {
       <div className="flex border-b border-dark-border/30">
         <button
           onClick={() => setTab('posts')}
+          aria-label="Posts"
           className={`flex-1 py-3 flex items-center justify-center border-b-2 transition-colors ${tab === 'posts' ? 'border-white text-white' : 'border-transparent text-surface-500 hover:text-surface-300'}`}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -372,6 +373,7 @@ export default function Profile() {
         </button>
         <button
           onClick={() => setTab('reels')}
+          aria-label="Reels"
           className={`flex-1 py-3 flex items-center justify-center border-b-2 transition-colors ${tab === 'reels' ? 'border-white text-white' : 'border-transparent text-surface-500 hover:text-surface-300'}`}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -380,6 +382,12 @@ export default function Profile() {
           </svg>
         </button>
       </div>
+
+      {isOwnProfile && (
+        <button onClick={() => navigate('/saved')} className="mx-4 mt-4 px-4 py-2 rounded-xl border border-dark-border/50 text-sm text-white hover:bg-white/5" id="profile-saved-posts">
+          Saved posts
+        </button>
+      )}
 
       {/* ── Posts grid ── */}
       {visiblePosts.length > 0 ? (
