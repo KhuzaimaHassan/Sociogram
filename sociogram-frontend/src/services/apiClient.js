@@ -54,7 +54,10 @@ async function refreshAccessToken() {
   if (refreshInFlight) return refreshInFlight;
 
   const refreshToken = tokenStore.getRefresh();
-  if (!refreshToken) throw new ApiError('No refresh token', 401, 'NO_REFRESH');
+  if (!refreshToken) {
+    tokenStore.clear();
+    throw new ApiError('No refresh token', 401, 'NO_REFRESH');
+  }
 
   refreshInFlight = fetch(`${BASE_URL}/api/auth/refresh`, {
     method: 'POST',
@@ -63,10 +66,16 @@ async function refreshAccessToken() {
   })
     .then(async (res) => {
       if (!res.ok) {
-        tokenStore.clear();
-        throw new ApiError('Session expired', 401, 'REFRESH_FAILED');
+        if (res.status === 401 && tokenStore.getRefresh() === refreshToken) tokenStore.clear();
+        throw new ApiError(res.status === 401 ? 'Session expired' : 'Unable to refresh session', res.status, 'REFRESH_FAILED');
       }
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!data?.accessToken || !data?.refreshToken) {
+        throw new ApiError('Invalid session response', 502, 'INVALID_REFRESH_RESPONSE');
+      }
+      if (tokenStore.getRefresh() !== refreshToken) {
+        throw new ApiError('Session changed', 409, 'SESSION_CHANGED');
+      }
       tokenStore.set(data);
       return data.accessToken;
     })
@@ -115,11 +124,12 @@ export async function request(path, options = {}) {
     return await rawRequest(path, options);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401 && err.code === 'TOKEN_EXPIRED' && options.auth !== false) {
+      await refreshAccessToken();
+      const retryToken = tokenStore.getAccess();
       try {
-        await refreshAccessToken();
         return await rawRequest(path, options);
       } catch (refreshErr) {
-        tokenStore.clear();
+        if (refreshErr instanceof ApiError && refreshErr.status === 401 && tokenStore.getAccess() === retryToken) tokenStore.clear();
         throw refreshErr;
       }
     }

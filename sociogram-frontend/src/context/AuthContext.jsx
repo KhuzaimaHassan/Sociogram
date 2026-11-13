@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import * as authApi from '../services/authService';
 import { tokenStore, ApiError } from '../services/apiClient';
 
@@ -24,33 +24,48 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(DEMO_MODE ? DEMO_USER : null);
-  const [isInitializing, setIsInitializing] = useState(!DEMO_MODE);
+  const [isInitializing, setIsInitializing] = useState(() => !DEMO_MODE && !!tokenStore.getAccess());
   const [isAuthenticated, setIsAuthenticated] = useState(DEMO_MODE);
+  const [sessionError, setSessionError] = useState(false);
+  const sessionRequest = useRef(0);
+
+  const restoreSession = useCallback(() => {
+    const requestId = ++sessionRequest.current;
+    return authApi.getMe().then((me) => {
+      if (requestId !== sessionRequest.current) return;
+      setUser(me);
+      setIsAuthenticated(true);
+    }).catch((err) => {
+      if (requestId !== sessionRequest.current) return;
+      if (err instanceof ApiError && err.status === 401) {
+        tokenStore.clear();
+        setUser(null);
+        setIsAuthenticated(false);
+      } else {
+        setSessionError(true);
+      }
+    }).finally(() => {
+      if (requestId === sessionRequest.current) setIsInitializing(false);
+    });
+  }, []);
 
   useEffect(() => {
-    if (DEMO_MODE) return; // Skip bootstrap in demo mode
+    if (DEMO_MODE || !tokenStore.getAccess()) return;
+    restoreSession();
+    return () => { sessionRequest.current += 1; };
+  }, [restoreSession]);
 
-    let cancelled = false;
-    async function bootstrap() {
-      const token = tokenStore.getAccess();
-      if (!token) {
-        if (!cancelled) setIsInitializing(false);
-        return;
-      }
-      try {
-        const me = await authApi.getMe();
-        if (cancelled) return;
-        setUser(me);
-        setIsAuthenticated(true);
-      } catch {
-        tokenStore.clear();
-      } finally {
-        if (!cancelled) setIsInitializing(false);
-      }
+  const retrySession = useCallback(() => {
+    setSessionError(false);
+    if (!tokenStore.getAccess()) {
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsInitializing(false);
+      return;
     }
-    bootstrap();
-    return () => { cancelled = true; };
-  }, []);
+    setIsInitializing(true);
+    return restoreSession();
+  }, [restoreSession]);
 
   const login = useCallback(async (credentials) => {
     if (DEMO_MODE) {
@@ -94,7 +109,10 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const logout = useCallback(() => {
+    sessionRequest.current += 1;
     if (!DEMO_MODE) authApi.logout();
+    setSessionError(false);
+    setIsInitializing(false);
     setUser(DEMO_MODE ? DEMO_USER : null);
     setIsAuthenticated(DEMO_MODE);
   }, []);
@@ -103,6 +121,8 @@ export function AuthProvider({ children }) {
     user,
     isAuthenticated,
     isInitializing,
+    sessionError,
+    retrySession,
     isDemo: DEMO_MODE,
     login,
     register,
