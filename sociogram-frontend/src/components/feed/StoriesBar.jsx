@@ -9,7 +9,7 @@
  * - Refreshes after creating a new story
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getStories } from '../../services/storyService';
 import StoryViewer from './StoryViewer';
@@ -17,28 +17,46 @@ import StoryCreator from './StoryCreator';
 
 export default function StoriesBar() {
   const { user: me } = useAuth();
+  return <AccountStories key={me?.id || 'guest'} me={me} />;
+}
+
+// Remount on account changes so stories and open dialogs never cross accounts.
+function AccountStories({ me }) {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const requestId = useRef(0);
   const [viewingIndex, setViewingIndex] = useState(null); // index into groups[]
   const [showCreator, setShowCreator] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const data = await getStories();
-      setGroups(data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback(() => {
+    const id = ++requestId.current;
+    return getStories().then((data) => {
+      if (id === requestId.current) setGroups(data);
+    }).catch(() => {
+      if (id === requestId.current) {
+        setGroups([]);
+        setError(true);
+      }
+    }).finally(() => {
+      if (id === requestId.current) setLoading(false);
+    });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    return () => { requestId.current += 1; };
+  }, [load]);
 
+  function reload() {
+    setLoading(true);
+    setError(false);
+    load();
+  }
   function openGroup(idx) { setViewingIndex(idx); }
-  function closeViewer() { setViewingIndex(null); load(); } // refresh seen state
+  function closeViewer() { setViewingIndex(null); reload(); } // refresh seen state
 
-  function handleCreated() { load(); }
+  function handleCreated() { reload(); }
 
   // Find my own group to show "active story" indicator on my bubble
   const myGroup = groups.find((g) => g.user.id === me?.id);
@@ -95,7 +113,7 @@ export default function StoriesBar() {
           ))}
 
           {/* ── Friend story bubbles ── */}
-          {!loading && displayGroups.map((group, rawIdx) => {
+          {!loading && !error && displayGroups.map((group) => {
             // index in the full groups array
             const fullIdx = groups.indexOf(group);
             const hasUnread = group.hasUnread;
@@ -103,6 +121,7 @@ export default function StoriesBar() {
             return (
               <button
                 key={group.user.id}
+                aria-label={`View ${group.user.username}'s story`}
                 onClick={() => openGroup(fullIdx)}
                 className="flex flex-col items-center gap-1.5 min-w-[64px] group"
               >
@@ -129,7 +148,13 @@ export default function StoriesBar() {
           })}
 
           {/* ── Empty state when no stories ── */}
-          {!loading && displayGroups.length === 0 && (
+          {!loading && error && (
+            <div role="alert" className="flex items-center gap-3 pl-2 text-xs text-amber-300">
+              <span>Stories couldn’t load.</span>
+              <button type="button" onClick={reload} className="font-semibold underline underline-offset-4">Retry</button>
+            </div>
+          )}
+          {!loading && !error && displayGroups.length === 0 && (
             <div className="flex items-center pl-2">
               <p className="text-xs text-surface-500">
                 No stories yet — follow people or create your first!

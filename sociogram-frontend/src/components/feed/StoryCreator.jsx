@@ -54,7 +54,7 @@ export default function StoryCreator({ onClose, onCreated }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-dark-border/30">
           <h2 className="text-base font-semibold text-white">Add Story</h2>
-          <button onClick={onClose} className="text-surface-400 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label="Close story creator" className="text-surface-400 hover:text-white transition-colors">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -86,6 +86,7 @@ export default function StoryCreator({ onClose, onCreated }) {
           {/* Caption */}
           <input
             type="text"
+            aria-label="Story caption"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Add a caption… (optional)"

@@ -32,6 +32,8 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
 
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -61,7 +63,7 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
 
   // Progress timer
   useEffect(() => {
-    if (paused || !currentStory) return;
+    if (paused || deleting || deleteError || !currentStory) return;
     setProgress(0);
     startTimeRef.current = Date.now();
 
@@ -76,7 +78,7 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
     }, 50);
 
     return () => clearInterval(timerRef.current);
-  }, [index, paused, duration]);
+  }, [index, paused, duration, deleting, deleteError]);
 
   function handlePause() {
     setPaused(true);
@@ -96,12 +98,19 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
   }
 
   async function handleDelete() {
+    if (deleting) return;
     if (!window.confirm('Delete this story?')) return;
+    setDeleting(true);
+    setDeleteError(false);
     try {
       await deleteStory(currentStory.id);
       setDeleted(true);
-      setTimeout(onClose, 300);
-    } catch (e) { console.error(e); }
+      onClose();
+    } catch {
+      setDeleteError(true);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (!currentStory || deleted) return null;
@@ -141,6 +150,8 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
         {isOwn && (
           <button
             onClick={handleDelete}
+            aria-label={deleting ? 'Deleting story' : 'Delete story'}
+            disabled={deleting}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
             className="p-2 text-white/80 hover:text-white"
@@ -155,6 +166,7 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
         )}
         <button
           onClick={onClose}
+          aria-label="Close story"
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
           className="p-2 text-white/80 hover:text-white"
@@ -166,6 +178,12 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
         </button>
       </div>
 
+      {deleteError && (
+        <p role="alert" className="absolute top-24 left-4 right-4 z-30 rounded-xl bg-red-950/90 border border-red-800 p-3 text-sm text-red-200">
+          Story couldn’t be deleted. Try the delete button again.
+        </p>
+      )}
+
       {/* Media */}
       <div className="flex-1 flex items-center justify-center">
         {currentStory.mediaType === 'video' ? (
@@ -176,7 +194,7 @@ export default function StoryViewer({ group, onClose, onNext, onPrev, hasPrev, h
             autoPlay
             playsInline
             muted={false}
-            onEnded={advance}
+            onEnded={() => { if (!deleting && !deleteError) advance(); }}
           />
         ) : (
           <img
