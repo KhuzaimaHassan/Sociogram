@@ -1,18 +1,17 @@
 import { api, API_BASE_URL, tokenStore } from './apiClient';
 
 export async function getStories() {
-  const { data } = await api.get('/stories');
+  const data = await api.get('/api/stories');
+  if (!Array.isArray(data)) throw new Error('Stories returned an invalid response');
   return data;
 }
 
 export async function viewStory(storyId) {
-  const { data } = await api.post(`/stories/${storyId}/view`);
-  return data;
+  return api.post(`/api/stories/${encodeURIComponent(storyId)}/view`);
 }
 
 export async function deleteStory(storyId) {
-  const { data } = await api.delete(`/stories/${storyId}`);
-  return data;
+  return api.delete(`/api/stories/${encodeURIComponent(storyId)}`);
 }
 
 /** Upload a story with progress tracking (XHR-based). */
