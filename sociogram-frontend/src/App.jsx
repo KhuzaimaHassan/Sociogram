@@ -4,6 +4,7 @@ import { AppProvider } from './context/AppContext';
 import { ExpressionProvider } from './context/ExpressionContext';
 import { SocketProvider } from './context/SocketContext';
 import AuthGuard from './components/auth/AuthGuard';
+import SessionStatus from './components/auth/SessionStatus';
 import TopNav from './components/layout/TopNav';
 import BottomNav from './components/layout/BottomNav';
 import PrivacyBadge from './components/layout/PrivacyBadge';
@@ -47,14 +48,8 @@ function ProtectedShell({ children }) {
 }
 
 function PublicOnly({ children }) {
-  const { isAuthenticated, isInitializing } = useAuth();
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-brand-500/30 border-t-brand-500 animate-spin" />
-      </div>
-    );
-  }
+  const { isAuthenticated, isInitializing, sessionError } = useAuth();
+  if (isInitializing || sessionError) return <SessionStatus />;
   if (isAuthenticated) {
     window.location.replace('/');
     return null;
