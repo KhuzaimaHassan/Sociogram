@@ -160,3 +160,8 @@ Use the **Expo Go** app on your physical device to scan the QR code and launch t
 <div align="center">
   <i>Built with ❤️ for privacy and seamless UX.</i>
 </div>
+
+
+## 🧾 Maintenance
+
+See the [fix history](docs/Fix-History.md) for merged repairs, verification evidence, and known test limits.
